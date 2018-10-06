@@ -1,3 +1,14 @@
+src/.cache.mk
+src/flashcache_kcopy.o.ur-safe
+src/flashcache_main.o.ur-safe
+src/flashcache_reclaim.o.ur-safe
+src/flashcache_subr.o.ur-safe
+src/utils/flashcache_create
+src/utils/flashcache_destroy
+src/utils/flashcache_load
+src/utils/flashcache_setioctl
+src/utils/get_agsize
+
 # Created by https://www.gitignore.io/api/vim
 
 ### Vim ###
