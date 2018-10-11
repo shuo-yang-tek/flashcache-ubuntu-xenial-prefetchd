@@ -1,0 +1,4 @@
+#!/bin/bash
+
+insmod ./src/flashcache.ko
+./src/utils/flashcache_create -p back -b 4k cachedev /dev/loop0 /dev/sdb0
