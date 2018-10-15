@@ -1474,8 +1474,8 @@ flashcache_read(struct cache_c *dmc, struct bio *bio)
 
 	prefetchd_update_stat(current->pid, bio, &prefetchd_stat_info);
 #ifdef PREFETCHD_DEBUG
-	if (prefetchd_stat_info->status > 2) {
-		DPPRINTK("Update %ld+%u credibility=%d",
+	if (prefetchd_stat_info.status > 2) {
+		DPPRINTK("Update %llu+%u credibility=%d",
 				prefetchd_stat_info.last_sector_num,
 				prefetchd_stat_info.last_size,
 				prefetchd_stat_info.credibility);
