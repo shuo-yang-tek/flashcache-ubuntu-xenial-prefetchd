@@ -173,6 +173,8 @@ static void process_stat(struct prefetchd_stat *stat) {
 	default:
 		if (detect_status(stat) != stat->status)
 			stat->status = initialized;
+		else if ((stat->status == stride_forward || stat->status == stride_backward) && stat->curr_req.size != stat->prev_req.size)
+			stat->status = initialized;
 		else if (stat->status == stride_forward && stat->stride_sector_count != stat->curr_req.sector_num - stat->prev_req.sector_num)
 			stat->status = initialized;
 		else if (stat->status == stride_backward && stat->stride_sector_count != stat->prev_req.sector_num - stat->curr_req.sector_num)
