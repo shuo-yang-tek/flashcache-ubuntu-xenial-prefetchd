@@ -1,0 +1,2 @@
+#define PREFETCHD_ON
+#define PREFETCHD_DEBUG
