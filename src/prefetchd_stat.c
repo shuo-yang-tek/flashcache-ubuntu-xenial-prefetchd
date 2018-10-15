@@ -3,6 +3,7 @@
 #include <linux/bio.h>
 #include <linux/genhd.h>
 
+#include "./flashcache.h"
 #include "./prefetchd_stat.h"
 
 struct req_info {
