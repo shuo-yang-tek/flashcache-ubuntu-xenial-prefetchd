@@ -1474,9 +1474,9 @@ flashcache_read(struct cache_c *dmc, struct bio *bio)
 
 	prefetchd_update_stat(current->pid, bio, &prefetchd_stat_info);
 	DPPRINTK("Update %ld+%u credibility=%d",
-			prefetchd_stat_info->last_sector_num,
-			prefetchd_stat_info->last_size,
-			prefetchd_stat_info->credibility);
+			prefetchd_stat_info.last_sector_num,
+			prefetchd_stat_info.last_size,
+			prefetchd_stat_info.credibility);
 #endif
 	
 	DPRINTK("Got a %s for %llu (%u bytes)",
