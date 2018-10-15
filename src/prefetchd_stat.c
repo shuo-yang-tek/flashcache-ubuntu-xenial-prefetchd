@@ -1,11 +1,11 @@
-#include <stdlib.h>
+#include <linux/types.h>
 #include <stdbool.h>
 #include <linux/bio.h>
 
 #include "./prefetchd_stat.h"
 
 struct req_info {
-	u_int64_t sector_num; // 512 bytes
+	u64 sector_num; // 512 bytes
 	unsigned int size; // bytes
 };
 
@@ -14,9 +14,9 @@ struct stat {
 
 	int pid;
 	int major;
-	u_int8_t minor;
+	u8 minor;
 
-	u_int64_t verified_count;
+	u64 verified_count;
 	struct req_info prev_req;
 	struct req_info curr_req;
 
@@ -118,8 +118,8 @@ static struct stat *enqueue(int pid, struct bio *bio) {
 static enum prefetchd_stat_status detect_status(struct stat *stat) {
 	struct req_info *prev = &(stat->prev_req);
 	struct req_info *curr = &(stat->curr_req);
-	u_int64_t prev_size = (u_int64_t)prev->size;
-	u_int64_t curr_size = (u_int64_t)curr->size;
+	u64 prev_size = (u64)prev->size;
+	u64 curr_size = (u64)curr->size;
 	prev_size = (511 & prev_size) == 0 ? prev_size >> 9 : (prev_size >> 9) + 1;
 	curr_size = (511 & curr_size) == 0 ? curr_size >> 9 : (curr_size >> 9) + 1;
 
@@ -190,7 +190,7 @@ static inline struct stat *get_stat_exist(int pid, struct bio *bio) {
 
 void prefetchd_update_stat(int pid, struct bio *bio, struct prefetchd_stat_info *info) {
 	struct stat *stat;
-	u_int64_t verified_count;
+	u64 verified_count;
 
 	// lock stat
 	
@@ -207,7 +207,7 @@ void prefetchd_update_stat(int pid, struct bio *bio, struct prefetchd_stat_info 
 	info->status = stat->status;
 	if (info->status > 2) {
 		verified_count = stat->verified_count - 1;
-		info->credibility = verified_count > 0xFF ? 255 : (u_int8_t)(verified_count & 0xFF);
+		info->credibility = verified_count > 0xFF ? 255 : (u8)(verified_count & 0xFF);
 		info->last_sector_num = stat->curr_req.sector_num;
 		info->last_size = stat->curr_req.size;
 	}

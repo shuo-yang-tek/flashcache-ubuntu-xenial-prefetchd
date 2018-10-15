@@ -1,4 +1,4 @@
-#include <stdlib.h>
+#include <linux/types.h>
 #include <linux/bio.h>
 
 #ifndef PREFETCHD_STAT
@@ -17,8 +17,8 @@ enum prefetchd_stat_status {
 
 struct prefetchd_stat_info {
 	enum prefetchd_stat_status status;
-	u_int8_t credibility;
-	u_int64_t last_sector_num; // 512 bytes
+	u8 credibility;
+	u64 last_sector_num; // 512 bytes
 	unsigned int last_size; // bytes
 };
 
