@@ -19,19 +19,6 @@ struct req_info {
 	unsigned int size; // bytes
 };
 
-/*
-static inline void initialize_stat(struct prefetchd_stat *target);
-static struct prefetchd_stat *dequeue(void);
-static void bring_to_head(struct prefetchd_stat *target);
-static struct prefetchd_stat *enqueue(int pid, struct bio *bio);
-static enum prefetchd_stat_status detect_status(struct prefetchd_stat *stat);
-static void process_stat(struct prefetchd_stat *stat);
-static inline bool stat_eq(int pid, struct bio *bio, struct prefetchd_stat *stat);
-static inline void req_cpy(struct req_info *dest, struct req_info *src);
-static inline void update_req(struct prefetchd_stat *stat, struct bio *bio);
-static inline struct prefetchd_stat *get_stat_exist(int pid, struct bio *bio);
-*/
-
 struct prefetchd_stat {
 	enum prefetchd_stat_status status;
 
@@ -40,6 +27,7 @@ struct prefetchd_stat {
 	u8 minor;
 
 	u64 verified_count;
+	u64 stride_sector_count;
 	struct req_info prev_req;
 	struct req_info curr_req;
 
@@ -177,12 +165,18 @@ static void process_stat(struct prefetchd_stat *stat) {
 		break;
 	case 1:
 		stat->status = detect_status(stat);
+		if (stat->status == stride_forward)
+			stat->stride_sector_count = stat->curr_req.sector_num - stat->prev_req.sector_num;
+		else if (stat->status == stride_backward)
+			stat->stride_sector_count = stat->prev_req.sector_num - stat->curr_req.sector_num;
 		break;
 	default:
-		if (detect_status(stat) != stat->status) {
+		if (detect_status(stat) != stat->status)
 			stat->status = initialized;
-		} else {
-		}
+		else if (stat->status == stride_forward && stat->stride_sector_count != stat->curr_req.sector_num - stat->prev_req.sector_num)
+			stat->status = initialized;
+		else if (stat->status == stride_backward && stat->stride_sector_count != stat->prev_req.sector_num - stat->curr_req.sector_num)
+			stat->status = initialized;
 	}
 
 	if (stat->status == initialized)
