@@ -18,6 +18,7 @@ endif
 
 all:
 	$(MAKE) -C src KERNEL_TREE=$(KERNEL_TREE) PWD=$(shell pwd)/src all
+	$(MAKE) -C src/utils PWD=$(shell pwd)/src/utils all
 
 install:
 	$(MAKE) -C src KERNEL_TREE=$(KERNEL_TREE) PWD=$(shell pwd)/src install
