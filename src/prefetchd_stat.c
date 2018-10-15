@@ -3,8 +3,11 @@
 #include <linux/bio.h>
 #include <linux/genhd.h>
 
-#include "./flashcache.h"
 #include "./prefetchd_stat.h"
+
+#define bi_sector	bi_iter.bi_sector
+#define bi_size		bi_iter.bi_size
+#define bi_idx		bi_iter.bi_idx
 
 struct req_info {
 	u64 sector_num; // 512 bytes
