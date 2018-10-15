@@ -1,3 +1,5 @@
+#include "prefetchd_switch.h"
+
 /****************************************************************************
  *  flashcache.h
  *  FlashCache: Device mapper target for block-level disk caching

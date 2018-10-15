@@ -3,6 +3,7 @@
 #include <linux/bio.h>
 #include <linux/genhd.h>
 
+#include "prefetchd_switch.h"
 #include "./prefetchd_stat.h"
 #include "./prefetchd_log.h"
 
