@@ -9,7 +9,7 @@ struct req_info {
 	unsigned int size; // bytes
 };
 
-struct stat {
+struct prefetchd_stat {
 	enum prefetchd_stat_status status;
 
 	int pid;
@@ -20,16 +20,16 @@ struct stat {
 	struct req_info prev_req;
 	struct req_info curr_req;
 
-	struct stat *prev;
-	struct stat *next;
+	struct prefetchd_stat *prev;
+	struct prefetchd_stat *next;
 };
 
-static struct stat stat_pool[PREFETCHD_STAT_COUNT];
-static struct stat *stats_head;
-static struct stat *stats_tail;
+static struct prefetchd_stat stat_pool[PREFETCHD_STAT_COUNT];
+static struct prefetchd_stat *stats_head;
+static struct prefetchd_stat *stats_tail;
 static int stats_count;
 
-static inline void initialize_stat(struct stat *target) {
+static inline void initialize_stat(struct prefetchd_stat *target) {
 	target->status = not_used;
 	target->verified_count = 0;
 	target->prev = NULL;
@@ -45,8 +45,8 @@ void prefetchd_stats_init() {
 	stats_count = 0;
 }
 
-static struct stat *dequeue() {
-	struct stat *target = stats_tail;
+static struct prefetchd_stat *dequeue() {
+	struct prefetchd_stat *target = stats_tail;
 
 	if (stats_count == 0) return NULL;
 
@@ -62,7 +62,7 @@ static struct stat *dequeue() {
 	return target;
 }
 
-static void bring_to_head(struct stat *target) {
+static void bring_to_head(struct prefetchd_stat *target) {
 	if (stats_count < 2)
 		return;
 
@@ -83,8 +83,8 @@ static void bring_to_head(struct stat *target) {
 	stats_head = target;
 }
 
-static struct stat *enqueue(int pid, struct bio *bio) {
-	struct stat *res;
+static struct prefetchd_stat *enqueue(int pid, struct bio *bio) {
+	struct prefetchd_stat *res;
 
 	if (stats_count == PREFETCHD_STAT_COUNT)
 		res = dequeue();
@@ -115,7 +115,7 @@ static struct stat *enqueue(int pid, struct bio *bio) {
 	return res;
 }
 
-static enum prefetchd_stat_status detect_status(struct stat *stat) {
+static enum prefetchd_stat_status detect_status(struct prefetchd_stat *stat) {
 	struct req_info *prev = &(stat->prev_req);
 	struct req_info *curr = &(stat->curr_req);
 	u64 prev_size = (u64)prev->size;
@@ -142,7 +142,7 @@ static enum prefetchd_stat_status detect_status(struct stat *stat) {
 	}
 }
 
-static void process_stat(struct stat *stat) {
+static void process_stat(struct prefetchd_stat *stat) {
 	switch (stat->verified_count) {
 	case 0:
 		stat->status = initialized;
@@ -163,7 +163,7 @@ static void process_stat(struct stat *stat) {
 		stat->verified_count += 1;
 }
 
-static inline bool stat_eq(int pid, struct bio *bio, struct stat *stat) {
+static inline bool stat_eq(int pid, struct bio *bio, struct prefetchd_stat *stat) {
 	if (pid == stat->pid && bio->bi_disk->major == stat->major && bio->bi_partno == stat->minor) return true;
 	return false;
 }
@@ -173,14 +173,14 @@ static inline void req_cpy(struct req_info *dest, struct req_info *src) {
 	dest->size = src->size;
 }
 
-static inline void update_req(struct stat *stat, struct bio *bio) {
+static inline void update_req(struct prefetchd_stat *stat, struct bio *bio) {
 	req_cpy(&(stat->prev_req), &(stat->curr_req));
 	stat->curr_req.sector_num = bio->bi_sector;
 	stat->curr_req.size = bio->bi_size;
 }
 
-static inline struct stat *get_stat_exist(int pid, struct bio *bio) {
-	struct stat *stat = stats_head;
+static inline struct prefetchd_stat *get_stat_exist(int pid, struct bio *bio) {
+	struct prefetchd_stat *stat = stats_head;
 	while (stat != NULL) {
 		if (stat_eq(pid, bio, stat)) break;
 		stat = stat->next;
@@ -189,7 +189,7 @@ static inline struct stat *get_stat_exist(int pid, struct bio *bio) {
 }
 
 void prefetchd_update_stat(int pid, struct bio *bio, struct prefetchd_stat_info *info) {
-	struct stat *stat;
+	struct prefetchd_stat *stat;
 	u64 verified_count;
 
 	// lock stat

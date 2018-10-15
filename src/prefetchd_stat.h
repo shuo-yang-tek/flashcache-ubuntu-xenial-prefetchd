@@ -24,5 +24,5 @@ struct prefetchd_stat_info {
 
 #endif
 
-void prefetchd_stats_init();
+void prefetchd_stats_init(void);
 void prefetchd_update_stat(int pid, struct bio *bio, struct prefetchd_stat_info *info);
