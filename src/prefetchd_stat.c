@@ -9,6 +9,7 @@ struct req_info {
 	unsigned int size; // bytes
 };
 
+/*
 static inline void initialize_stat(struct prefetchd_stat *target);
 static struct prefetchd_stat *dequeue(void);
 static void bring_to_head(struct prefetchd_stat *target);
@@ -19,6 +20,7 @@ static inline bool stat_eq(int pid, struct bio *bio, struct prefetchd_stat *stat
 static inline void req_cpy(struct req_info *dest, struct req_info *src);
 static inline void update_req(struct prefetchd_stat *stat, struct bio *bio);
 static inline struct prefetchd_stat *get_stat_exist(int pid, struct bio *bio);
+*/
 
 struct prefetchd_stat {
 	enum prefetchd_stat_status status;
@@ -58,7 +60,7 @@ void prefetchd_stats_init() {
 	stats_count = 0;
 }
 
-static struct prefetchd_stat *dequeue() {
+static struct prefetchd_stat *dequeue(void) {
 	struct prefetchd_stat *target = stats_tail;
 
 	if (stats_count == 0) return NULL;
