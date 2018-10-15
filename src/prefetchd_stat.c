@@ -4,6 +4,7 @@
 #include <linux/genhd.h>
 
 #include "./prefetchd_stat.h"
+#include "./prefetchd_log.h"
 
 #define bi_sector	bi_iter.bi_sector
 #define bi_size		bi_iter.bi_size
@@ -63,6 +64,8 @@ void prefetchd_stats_init() {
 	stats_head = NULL;
 	stats_tail = NULL;
 	stats_count = 0;
+
+	DPPRINTK("stats initialized");
 }
 
 static struct prefetchd_stat *dequeue(void) {

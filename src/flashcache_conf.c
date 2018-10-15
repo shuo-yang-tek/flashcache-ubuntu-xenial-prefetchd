@@ -60,6 +60,10 @@
 #include "flashcache.h"
 #include "flashcache_ioctl.h"
 
+#ifdef PREFETCHD_ON
+#include "prefetchd_stat.h"
+#endif
+
 struct cache_c *cache_list_head = NULL;
 struct work_struct _kcached_wq;
 u_int64_t size_hist[33];
@@ -1897,6 +1901,11 @@ flashcache_init(void)
 		kmalloc(sizeof(struct flashcache_control_s), GFP_KERNEL);
 	flashcache_control->synch_flags = 0;
 	register_reboot_notifier(&flashcache_notifier);
+
+#ifdef PREFETCHD_ON
+	prefetchd_stats_init();
+#endif
+
 	return r;
 }
 
