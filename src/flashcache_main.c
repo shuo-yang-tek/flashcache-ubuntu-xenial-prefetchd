@@ -64,6 +64,11 @@
 #define DM_MAPIO_SUBMITTED	0
 #endif
 
+#ifdef PREFETCHD_ON
+#include "prefetchd_stat.h"
+#endif
+#include "prefetchd_log.h"
+
 /*
  * TODO List :
  * 1) Management of non cache pids : Needs improvement. Remove registration
@@ -1463,6 +1468,16 @@ flashcache_read(struct cache_c *dmc, struct bio *bio)
 	struct cacheblock *cacheblk;
 	int queued;
 	unsigned long flags;
+
+#ifdef PREFETCHD_ON
+	struct prefetchd_stat_info prefetchd_stat_info;
+
+	prefetchd_update_stat(current->pid, bio, &prefetchd_stat_info);
+	DPPRINTK("Update %ld+%u credibility=%d",
+			prefetchd_stat_info->last_sector_num,
+			prefetchd_stat_info->last_size,
+			prefetchd_stat_info->credibility);
+#endif
 	
 	DPRINTK("Got a %s for %llu (%u bytes)",
 	        (bio_rw(bio) == READ ? "READ":"READA"), 
