@@ -2,6 +2,7 @@
 #include <stdbool.h>
 #include <linux/bio.h>
 #include <linux/genhd.h>
+#include <linux/spinlock.h>
 
 #include "prefetchd_switch.h"
 #include "./prefetchd_stat.h"
@@ -10,6 +11,8 @@
 #define bi_sector	bi_iter.bi_sector
 #define bi_size		bi_iter.bi_size
 #define bi_idx		bi_iter.bi_idx
+
+DEFINE_SPINLOCK(prefetchd_stat_lock);
 
 struct req_info {
 	u64 sector_num; // 512 bytes
