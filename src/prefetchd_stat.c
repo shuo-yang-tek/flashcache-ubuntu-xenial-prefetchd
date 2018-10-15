@@ -1,6 +1,7 @@
 #include <linux/types.h>
 #include <stdbool.h>
 #include <linux/bio.h>
+#include <linux/genhd.h>
 
 #include "./prefetchd_stat.h"
 
