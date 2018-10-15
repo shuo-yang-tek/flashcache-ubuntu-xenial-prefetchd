@@ -9,6 +9,17 @@ struct req_info {
 	unsigned int size; // bytes
 };
 
+static inline void initialize_stat(struct prefetchd_stat *target);
+static struct prefetchd_stat *dequeue(void);
+static void bring_to_head(struct prefetchd_stat *target);
+static struct prefetchd_stat *enqueue(int pid, struct bio *bio);
+static enum prefetchd_stat_status detect_status(struct prefetchd_stat *stat);
+static void process_stat(struct prefetchd_stat *stat);
+static inline bool stat_eq(int pid, struct bio *bio, struct prefetchd_stat *stat);
+static inline void req_cpy(struct req_info *dest, struct req_info *src);
+static inline void update_req(struct prefetchd_stat *stat, struct bio *bio);
+static inline struct prefetchd_stat *get_stat_exist(int pid, struct bio *bio);
+
 struct prefetchd_stat {
 	enum prefetchd_stat_status status;
 
@@ -37,7 +48,9 @@ static inline void initialize_stat(struct prefetchd_stat *target) {
 }
 
 void prefetchd_stats_init() {
-	for (int i = 0; i < PREFETCHD_STAT_COUNT; i++)
+	int i;
+
+	for (i = 0; i < PREFETCHD_STAT_COUNT; i++)
 		initialize_stat(&stat_pool[i]);
 
 	stats_head = NULL;
@@ -85,11 +98,12 @@ static void bring_to_head(struct prefetchd_stat *target) {
 
 static struct prefetchd_stat *enqueue(int pid, struct bio *bio) {
 	struct prefetchd_stat *res;
+	int i;
 
 	if (stats_count == PREFETCHD_STAT_COUNT)
 		res = dequeue();
 	else {
-		for (int i = 0; i < PREFETCHD_STAT_COUNT; i++) {
+		for (i = 0; i < PREFETCHD_STAT_COUNT; i++) {
 			res = &stat_pool[i];
 			if (res->status == not_used)
 				break;
