@@ -215,10 +215,9 @@ static inline struct prefetchd_stat *get_stat_exist(int pid, struct bio *bio) {
 void prefetchd_update_stat(int pid, struct bio *bio, struct prefetchd_stat_info *info) {
 	struct prefetchd_stat *stat;
 	u64 verified_count;
-	unsigned long flags;
 
 	// lock stat
-	spin_lock_irqsave(&prefetchd_stat_lock, flags);
+	spin_lock(&prefetchd_stat_lock);
 	
 	stat = get_stat_exist(pid, bio);
 
@@ -239,5 +238,5 @@ void prefetchd_update_stat(int pid, struct bio *bio, struct prefetchd_stat_info 
 	}
 
 	// unlock stat
-	spin_unlock_irqrestore(&prefetchd_stat_lock, flags);
+	spin_unlock(&prefetchd_stat_lock);
 }
