@@ -434,12 +434,12 @@ skip_sequential_io(struct cache_c *dmc, struct bio *bio)
 		return 0;
 
 	/* Is it a continuation of recent i/o?  Try to find a match.  */
-	DPRINTK("skip_sequential_io: searching for %ld", bio->bi_sector);
+	DPRINTK("skip_sequential_io: searching for %ld", bio->bi_iter.bi_sector);
 	/* search the list in LRU order so single sequential flow hits first slot */
 	VERIFY(spin_is_locked(&dmc->ioctl_lock));
 	for (seqio = dmc->seq_io_head; seqio != NULL && sequential == 0; seqio = seqio->next) { 
 
-		if (bio->bi_sector == seqio->most_recent_sector) {
+		if (bio->bi_iter.bi_sector == seqio->most_recent_sector) {
 			/* Reread or write same sector again.  Ignore but move to head */
 			DPRINTK("skip_sequential_io: repeat");
 			sequential = 1;
@@ -447,10 +447,10 @@ skip_sequential_io(struct cache_c *dmc, struct bio *bio)
 				seq_io_move_to_lruhead(dmc, seqio);
 		}
 		/* i/o to one block more than the previous i/o = sequential */	
-		else if (bio->bi_sector == seqio->most_recent_sector + dmc->block_size) {
+		else if (bio->bi_iter.bi_sector == seqio->most_recent_sector + dmc->block_size) {
 			DPRINTK("skip_sequential_io: sequential found");
 			/* Update stats.  */
-			seqio->most_recent_sector = bio->bi_sector;
+			seqio->most_recent_sector = bio->bi_iter.bi_sector;
 			seqio->sequential_count++;
 			sequential = 1;
 
@@ -478,7 +478,7 @@ skip_sequential_io(struct cache_c *dmc, struct bio *bio)
 		DPRINTK("skip_sequential_io: fill in data");
 
 		/* Fill in data */
-		seqio->most_recent_sector = bio->bi_sector;
+		seqio->most_recent_sector = bio->bi_iter.bi_sector;
 		seqio->sequential_count	  = 1;
 	}
 	DPRINTK("skip_sequential_io: complete.");

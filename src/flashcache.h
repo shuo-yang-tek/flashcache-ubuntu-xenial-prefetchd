@@ -43,12 +43,6 @@
 	} \
 } while(0)
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(3,14,0)
-#define bi_sector	bi_iter.bi_sector
-#define bi_size		bi_iter.bi_size
-#define bi_idx		bi_iter.bi_idx
-#endif
-
 #define DMC_DEBUG 0
 #define DMC_DEBUG_LITE 0
 

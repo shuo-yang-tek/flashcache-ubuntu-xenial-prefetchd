@@ -161,7 +161,7 @@ int dm_io_async_bvec(unsigned int num_regions,
 	iorq.mem.ptr.bio = bio;	
 #else
 	iorq.mem.type = DM_IO_BVEC;
-	iorq.mem.ptr.bvec = bio->bi_io_vec + bio->bi_idx;
+	iorq.mem.ptr.bvec = bio->bi_io_vec + bio->bi_iter.bi_idx;
 #endif
 	iorq.notify.fn = fn;
 	iorq.notify.context = context;
@@ -472,7 +472,7 @@ flashcache_do_pending_error(struct kcached_job *job)
 		if (!dmc->bypass_cache)  /* suppress massive console output */
 			DMERR("flashcache_do_pending_error: Re-launching errored IO"
 			      "to disk, after io error %d block %lu",
-			      error, bio->bi_sector);
+			      error, bio->bi_iter.bi_sector);
 		flashcache_start_uncached_io(dmc, bio);
 		while (pjob_list != NULL) {
 			pjob = pjob_list;
@@ -530,7 +530,7 @@ flashcache_do_pending_noerror(struct kcached_job *job)
 		cacheblk->nr_queued--;
 		if (pending_job->action == INVALIDATE) {
 			DPRINTK("flashcache_do_pending: INVALIDATE  %llu",
-				next_job->bio->bi_sector);
+				next_job->bio->bi_iter.bi_sector);
 			VERIFY(pending_job->bio != NULL);
 			queued = flashcache_inval_blocks(dmc, pending_job->bio);
 			if (queued) {
@@ -548,7 +548,7 @@ flashcache_do_pending_noerror(struct kcached_job *job)
 		}
 		flashcache_setlocks_multidrop(dmc, pending_job->bio);
 		DPRINTK("flashcache_do_pending: Sending down IO %llu",
-			pending_job->bio->bi_sector);
+			pending_job->bio->bi_iter.bi_sector);
 		/* Start uncached IO */
 		flashcache_start_uncached_io(dmc, pending_job->bio);
 		flashcache_free_pending_job(pending_job);
@@ -669,9 +669,9 @@ find_reclaim_dbn(struct cache_c *dmc, int start_index, int *index)
 static int 
 flashcache_lookup(struct cache_c *dmc, struct bio *bio, int *index)
 {
-	sector_t dbn = bio->bi_sector;
+	sector_t dbn = bio->bi_iter.bi_sector;
 #if DMC_DEBUG
-	int io_size = to_sector(bio->bi_size);
+	int io_size = to_sector(bio->bi_iter.bi_size);
 #endif
 	unsigned long set_number = hash_block(dmc, dbn);
 	int invalid, oldest_clean = -1;
@@ -1368,7 +1368,7 @@ flashcache_read_hit(struct cache_c *dmc, struct bio* bio, int index)
 		dmc->flashcache_stats.read_hits++;
 		flashcache_setlocks_multidrop(dmc, bio);
 		DPRINTK("Cache read: Block %llu(%lu), index = %d:%s",
-			bio->bi_sector, bio->bi_size, index, "CACHE HIT");
+			bio->bi_iter.bi_sector, bio->bi_iter.bi_size, index, "CACHE HIT");
 		job = new_kcached_job(dmc, bio, index);
 		if (unlikely(dmc->sysctl_error_inject & READ_HIT_JOB_ALLOC_FAIL)) {
 			if (job)
@@ -1486,7 +1486,7 @@ flashcache_read(struct cache_c *dmc, struct bio *bio)
 	
 	DPRINTK("Got a %s for %llu (%u bytes)",
 	        (bio_rw(bio) == READ ? "READ":"READA"), 
-		bio->bi_sector, bio->bi_size);
+		bio->bi_iter.bi_sector, bio->bi_iter.bi_size);
 
 	flashcache_setlocks_multiget(dmc, bio);
 	res = flashcache_lookup(dmc, bio, &index);
@@ -1494,7 +1494,7 @@ flashcache_read(struct cache_c *dmc, struct bio *bio)
 	if (res > 0) {
 		cacheblk = &dmc->cache[index];
 		if ((cacheblk->cache_state & VALID) && 
-		    (cacheblk->dbn == bio->bi_sector)) {
+		    (cacheblk->dbn == bio->bi_iter.bi_sector)) {
 			flashcache_read_hit(dmc, bio, index);
 			return;
 		}
@@ -1538,9 +1538,9 @@ flashcache_read(struct cache_c *dmc, struct bio *bio)
 			flashcache_invalid_insert(dmc, index);
 		flashcache_setlocks_multidrop(dmc, bio);
 		DPRINTK("Cache read: Block %llu(%lu):%s",
-			bio->bi_sector, bio->bi_size, "CACHE MISS & NO ROOM");
+			bio->bi_iter.bi_sector, bio->bi_iter.bi_size, "CACHE MISS & NO ROOM");
 		if (res == -1)
-			flashcache_clean_set(dmc, hash_block(dmc, bio->bi_sector), 0);
+			flashcache_clean_set(dmc, hash_block(dmc, bio->bi_iter.bi_sector), 0);
 		/* Start uncached IO */
 		flashcache_start_uncached_io(dmc, bio);
 		return;
@@ -1563,12 +1563,12 @@ flashcache_read(struct cache_c *dmc, struct bio *bio)
 	} else
 		atomic_inc(&dmc->cached_blocks);
 	dmc->cache[index].cache_state = VALID | DISKREADINPROG;
-	dmc->cache[index].dbn = bio->bi_sector;
+	dmc->cache[index].dbn = bio->bi_iter.bi_sector;
 	flashcache_hash_insert(dmc, index);
 	flashcache_setlocks_multidrop(dmc, bio);
 
 	DPRINTK("Cache read: Block %llu(%lu), index = %d:%s",
-		bio->bi_sector, bio->bi_size, index, "CACHE MISS & REPLACE");
+		bio->bi_iter.bi_sector, bio->bi_iter.bi_size, index, "CACHE MISS & REPLACE");
 	flashcache_read_miss(dmc, bio, index);
 }
 
@@ -1580,8 +1580,8 @@ flashcache_read(struct cache_c *dmc, struct bio *bio)
 static void
 flashcache_setlocks_multiget(struct cache_c *dmc, struct bio *bio)
 {
-	int start_set = hash_block(dmc, bio->bi_sector);
-	int end_set = hash_block(dmc, bio->bi_sector + (to_sector(bio->bi_size) - 1));
+	int start_set = hash_block(dmc, bio->bi_iter.bi_sector);
+	int end_set = hash_block(dmc, bio->bi_iter.bi_sector + (to_sector(bio->bi_iter.bi_size) - 1));
 	
 	VERIFY(!in_interrupt());
 	spin_lock_irq(&dmc->cache_sets[start_set].set_spin_lock);
@@ -1592,8 +1592,8 @@ flashcache_setlocks_multiget(struct cache_c *dmc, struct bio *bio)
 static void
 flashcache_setlocks_multidrop(struct cache_c *dmc, struct bio *bio)
 {
-	int start_set = hash_block(dmc, bio->bi_sector);
-	int end_set = hash_block(dmc, bio->bi_sector + (to_sector(bio->bi_size) - 1));
+	int start_set = hash_block(dmc, bio->bi_iter.bi_sector);
+	int end_set = hash_block(dmc, bio->bi_iter.bi_sector + (to_sector(bio->bi_iter.bi_size) - 1));
 	
 	VERIFY(!in_interrupt());
 	if (start_set != end_set)
@@ -1610,8 +1610,8 @@ static int
 flashcache_inval_block_set(struct cache_c *dmc, int set, struct bio *bio, int rw,
 			   struct pending_job *pjob)
 {
-	sector_t io_start = bio->bi_sector;
-	sector_t io_end = bio->bi_sector + (to_sector(bio->bi_size) - 1);
+	sector_t io_start = bio->bi_iter.bi_sector;
+	sector_t io_end = bio->bi_iter.bi_sector + (to_sector(bio->bi_iter.bi_size) - 1);
 	int start_index, end_index, i;
 	struct cacheblock *cacheblk;
 	
@@ -1716,7 +1716,7 @@ flashcache_inval_block_set_v3(struct cache_c *dmc, int set, struct bio *bio,
 	sector_t mask;
 
 	mask = ~((1 << dmc->block_shift) - 1);
-	io_start = bio->bi_sector & mask;
+	io_start = bio->bi_iter.bi_sector & mask;
 	/* Check in per-set hash to see if the overlapping block exists in cache */
 	index = flashcache_hash_lookup(dmc, set, io_start);
 	if (index == -1) {
@@ -1818,8 +1818,8 @@ flashcache_inval_blocks(struct cache_c *dmc, struct bio *bio)
 			queued = -ENOMEM;
 			goto out;
 		}
-		io_start = bio->bi_sector;
-		io_end = (bio->bi_sector + (to_sector(bio->bi_size) - 1));
+		io_start = bio->bi_iter.bi_sector;
+		io_end = (bio->bi_iter.bi_sector + (to_sector(bio->bi_iter.bi_size) - 1));
 		start_set = hash_block(dmc, io_start);
 		end_set = hash_block(dmc, io_end);
 		VERIFY(spin_is_locked(&dmc->cache_sets[start_set].set_spin_lock));
@@ -1855,7 +1855,7 @@ flashcache_inval_blocks(struct cache_c *dmc, struct bio *bio)
 		 * is in the cache.
 		 */
 		mask = ~((1 << dmc->block_shift) - 1);
-		io_start = bio->bi_sector & mask;
+		io_start = bio->bi_iter.bi_sector & mask;
 		start_set = hash_block(dmc, io_start);
 		VERIFY(spin_is_locked(&dmc->cache_sets[start_set].set_spin_lock));
 		queued = flashcache_inval_block_set_v3(dmc, start_set, bio, pjob1);
@@ -1902,7 +1902,7 @@ flashcache_write_miss(struct cache_c *dmc, struct bio *bio, int index)
 	} else
 		atomic_inc(&dmc->cached_blocks);
 	cacheblk->cache_state = VALID | CACHEWRITEINPROG;
-	cacheblk->dbn = bio->bi_sector;
+	cacheblk->dbn = bio->bi_iter.bi_sector;
 	flashcache_hash_insert(dmc, index);
 	flashcache_setlocks_multidrop(dmc, bio);
 	job = new_kcached_job(dmc, bio, index);
@@ -1994,7 +1994,7 @@ flashcache_write_hit(struct cache_c *dmc, struct bio *bio, int index)
 			cacheblk->cache_state &= ~(BLOCK_IO_INPROG);
 			spin_unlock_irq(&cache_set->set_spin_lock);
 		} else {
-			DPRINTK("Queue job for %llu", bio->bi_sector);
+			DPRINTK("Queue job for %llu", bio->bi_iter.bi_sector);
 			atomic_inc(&dmc->nr_jobs);
 			dmc->flashcache_stats.ssd_writes++;
 			job->action = WRITECACHE;
@@ -2050,7 +2050,7 @@ flashcache_write(struct cache_c *dmc, struct bio *bio)
 		/* Cache Hit */
 		cacheblk = &dmc->cache[index];		
 		if ((cacheblk->cache_state & VALID) && 
-		    (cacheblk->dbn == bio->bi_sector)) {
+		    (cacheblk->dbn == bio->bi_iter.bi_sector)) {
 			/* Cache Hit */
 			flashcache_write_hit(dmc, bio, index);
 		} else {
@@ -2073,7 +2073,7 @@ flashcache_write(struct cache_c *dmc, struct bio *bio)
 	}
 	/* Start uncached IO */
 	flashcache_start_uncached_io(dmc, bio);
-	flashcache_clean_set(dmc, hash_block(dmc, bio->bi_sector), 0);
+	flashcache_clean_set(dmc, hash_block(dmc, bio->bi_iter.bi_sector), 0);
 }
 
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,32)
@@ -2099,10 +2099,10 @@ flashcache_do_block_checks(struct cache_c *dmc, struct bio *bio)
 	sector_t io_start;
 	sector_t io_end;
 
-	VERIFY(to_sector(bio->bi_size) <= dmc->block_size);
+	VERIFY(to_sector(bio->bi_iter.bi_size) <= dmc->block_size);
 	mask = ~((1 << dmc->block_shift) - 1);
-	io_start = bio->bi_sector & mask;
-	io_end = (bio->bi_sector + (to_sector(bio->bi_size) - 1)) & mask;
+	io_start = bio->bi_iter.bi_sector & mask;
+	io_end = (bio->bi_iter.bi_sector + (to_sector(bio->bi_iter.bi_size) - 1)) & mask;
 	/* The incoming bio must NOT straddle a blocksize boundary */
 	VERIFY(io_start == io_end);
 }
@@ -2119,7 +2119,7 @@ flashcache_map(struct dm_target *ti, struct bio *bio)
 #endif
 {
 	struct cache_c *dmc = (struct cache_c *) ti->private;
-	int sectors = to_sector(bio->bi_size);
+	int sectors = to_sector(bio->bi_iter.bi_size);
 	int queued;
 	int uncacheable;
 	unsigned long flags;
@@ -2146,7 +2146,7 @@ flashcache_map(struct dm_target *ti, struct bio *bio)
 		     (dmc->whitelist_head || dmc->blacklist_head)))
 		flashcache_pid_expiry_all_locked(dmc);
 	uncacheable = (unlikely(dmc->bypass_cache) ||
-		       (to_sector(bio->bi_size) != dmc->block_size) ||
+		       (to_sector(bio->bi_iter.bi_size) != dmc->block_size) ||
 		       /* 
 			* If the op is a READ, we serve it out of cache whenever possible, 
 			* regardless of cacheablity 

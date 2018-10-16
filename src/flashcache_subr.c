@@ -375,7 +375,7 @@ flashcache_enq_pending(struct cache_c *dmc, struct bio* bio,
 	spin_lock_irqsave(&dmc->cache_pending_q_spinlock, flags);
 	head = &dmc->pending_job_hashbuckets[FLASHCACHE_PENDING_JOB_HASH(index)];
 	DPRINTK("flashcache_enq_pending: Queue to pending Q Index %d %llu",
-		index, bio->bi_sector);
+		index, bio->bi_iter.bi_sector);
 	VERIFY(job != NULL);
 	job->action = action;
 	job->index = index;
@@ -477,7 +477,7 @@ flashcache_compute_checksum(struct bio *bio)
 		kmap_type = KM_SOFTIRQ0;
 	else
 		kmap_type = KM_USER0;
-	for (i = bio->bi_idx ; i < bio->bi_vcnt ; i++) {
+	for (i = bio->bi_iter.bi_idx ; i < bio->bi_vcnt ; i++) {
 		kvaddr = kmap_atomic(bio->bi_io_vec[i].bv_page, kmap_type);
 		idx = (u_int64_t *)
 			((char *)kvaddr + bio->bi_io_vec[i].bv_offset);
@@ -693,8 +693,8 @@ new_kcached_job(struct cache_c *dmc, struct bio* bio, int index)
 		job->job_io_regions.disk.sector = dmc->cache[index].dbn;
 		job->job_io_regions.disk.count = dmc->block_size;
 	} else {
-		job->job_io_regions.disk.sector = bio->bi_sector;
-		job->job_io_regions.disk.count = to_sector(bio->bi_size);
+		job->job_io_regions.disk.sector = bio->bi_iter.bi_sector;
+		job->job_io_regions.disk.count = to_sector(bio->bi_iter.bi_size);
 	}
 	job->next = NULL;
 	job->md_block = NULL;
@@ -735,7 +735,7 @@ flashcache_bio_endio(struct bio *bio, int error,
 		     start_time->tv_sec != 0))
 		flashcache_record_latency(dmc, start_time);
 #if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,24)
-	bio_endio(bio, bio->bi_size, error);
+	bio_endio(bio, bio->bi_iter.bi_size, error);
 #elif LINUX_VERSION_CODE < KERNEL_VERSION(4,3,0)
 	bio_endio(bio, error);
 #else

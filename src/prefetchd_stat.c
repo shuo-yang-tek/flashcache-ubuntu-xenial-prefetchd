@@ -8,10 +8,6 @@
 #include "./prefetchd_stat.h"
 #include "./prefetchd_log.h"
 
-#define bi_sector	bi_iter.bi_sector
-#define bi_size		bi_iter.bi_size
-#define bi_idx		bi_iter.bi_idx
-
 DEFINE_SPINLOCK(prefetchd_stat_lock);
 
 struct req_info {
@@ -199,8 +195,8 @@ static inline void req_cpy(struct req_info *dest, struct req_info *src) {
 
 static inline void update_req(struct prefetchd_stat *stat, struct bio *bio) {
 	req_cpy(&(stat->prev_req), &(stat->curr_req));
-	stat->curr_req.sector_num = bio->bi_sector;
-	stat->curr_req.size = bio->bi_size;
+	stat->curr_req.sector_num = bio->bi_iter.bi_sector;
+	stat->curr_req.size = bio->bi_iter.bi_size;
 }
 
 static inline struct prefetchd_stat *get_stat_exist(int pid, struct bio *bio) {
