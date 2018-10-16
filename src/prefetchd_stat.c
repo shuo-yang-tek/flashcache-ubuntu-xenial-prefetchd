@@ -78,7 +78,7 @@ static struct prefetchd_stat *dequeue(void) {
 }
 
 static void bring_to_head(struct prefetchd_stat *target) {
-	if (stats_count < 2)
+	if (stats_count < 2 || target == stats_head)
 		return;
 
 	if (target == stats_tail)
