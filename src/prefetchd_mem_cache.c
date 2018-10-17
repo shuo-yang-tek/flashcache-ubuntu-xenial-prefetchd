@@ -28,12 +28,11 @@
 #include "./prefetchd_stat.h"
 #include "./prefetchd_mem_cache.h"
 
-DEFINE_SPINLOCK(mem_cache_global_lock);
+extern void flashcache_setlocks_multiget(struct cache_c *dmc, struct bio *bio);
+extern void flashcache_setlocks_multidrop(struct cache_c *dmc, struct bio *bio);
+extern int flashcache_lookup(struct cache_c *dmc, struct bio *bio, int *index);
 
-struct prefetch_io_info {
-	u64 sector_num;
-	unsigned int size;
-};
+DEFINE_SPINLOCK(mem_cache_global_lock);
 
 enum mem_cache_status {
 	empty = 1,
@@ -50,6 +49,10 @@ struct mem_cache {
 	struct semaphore lock;
 	atomic_t hold_count;
 	atomic_t used_count;
+
+	// for droping lock
+	struct bio bio;
+	struct cache_c *dmc;
 };
 
 struct mem_cache_list_elm {
@@ -235,14 +238,115 @@ bool prefetchd_mem_cache_handle_bio(struct bio *bio) {
 	return true;
 }
 
-bool prefetchd_mem_cache_create(struct cache_c *dmc, struct prefetchd_stat_info *stat_info) {
-	struct prefetch_io_info io_infos[MAX_MEM_CACHE_COUNT_PER_PREFETCH];
+static int get_mem_cache_count(struct cache_c *dmc, struct prefetchd_stat_info *stat_info) {
 	u64 disk_start = (dmc->tgt->begin) << 9;
 	u64 disk_len = (dmc->tgt->len) << 9;
+	u64 a, b, result, result2;
+
+	switch (stat_info->status) {
+	case sequential_forward:
+		a = len - ((stat_info->last_sector_num << 9) + ((u64)(stat_info->last_size)));
+		b = (u64)(stat_info->last_size);
+		break;
+	case sequential_backward:
+		a = (stat_info->last_sector_num << 9) - disk_start;
+		b = (u64)(stat_info->last_size);
+		break;
+	case stride_forward:
+		a = len - ((stat_info->last_sector_num + stat_info->stride_count) << 9);
+		b = stat_info->stride_count;
+		break;
+	case stride_backward:
+		a = (stat_info->last_sector_num << 9) - disk_start;
+		b = stat_info->stride_count;
+		break;
+	default:
+		return -1;
+	}
+
+	result = a / b;
+
+	switch (stat_info->status) {
+	case sequential_forward:
+	case sequential_backward:
+		result2 = SIZE_PER_MEM_CACHE / (u64)stat_info->last_size;
+		result = result > result2 ? result2 : result;
+		break;
+	case stride_forward:
+	case stride_backward:
+		result = result > MAX_MEM_CACHE_COUNT_PER_PREFETCH ?
+			MAX_MEM_CACHE_COUNT_PER_PREFETCH : result;
+		break;
+	}
+
+	return (int) result;
+}
+
+static bool mem_cache_alloc(
+	struct cache_c *dmc,
+	struct prefetchd_stat_info *stat_info,
+	struct bio *tmp_bio,
+	int *index,
+	int count
+) {
+}
+
+bool prefetchd_mem_cache_create(struct cache_c *dmc, struct prefetchd_stat_info *stat_info) {
+	struct bio tmp_bio;
+	int lookup_index, lookup_res;
+	int max_mem_cache_count;
+	struct cacheblock *cacheblk;
 
 	// basic check
 	if (stat_info->status <= 2)
 		return false;
 	if (stat_info->last_size > SIZE_PER_MEM_CACHE)
 		return false;
+
+	max_mem_cache_count = get_mem_cache_count(dmc, stat_info);
+	if (max_mem_cache_count <= 0) return false;
+
+	// ssd check
+	switch (stat_info->status) {
+	case sequential_forward:
+		tmp_bio.bi_iter.bi_sector = 
+			stat_info->last_sector_num +
+			(u64)(stat_info->last_size >> 9);
+		break;
+	case sequential_backward:
+		tmp_bio.bi_iter.bi_sector = 
+			stat_info->last_sector_num - 
+			(u64)(stat_info->last_size >> 9);
+		break;
+	case stride_forward:
+		tmp_bio.bi_iter.bi_sector =
+			stat_info->last_sector_num +
+			stat_info->stride_count;
+		break;
+	case stride_backward:
+		tmp_bio.bi_iter.bi_sector =
+			stat_info->last_sector_num -
+			stat_info->stride_count;
+		break;
+	default:
+		return false;
+	}
+	tmp_bio.bi_iter.bi_size = stat_info->last_size;
+	flashcache_setlocks_multiget(dmc, tmp_bio);
+	lookup_res = flashcache_lookup(dmc, &tmp_bio, &lookup_index);
+	if (lookup_res > 0) {
+		cacheblk = &dmc->cache[lookup_index];
+		if ((cacheblk->cache_state & VALID) && 
+		    (cacheblk->dbn == bio->bi_iter.bi_sector)) {
+			return mem_cache_alloc(dmc, stat_info, &tmp_bio, &lookup_index, 1);
+		}
+	}
+	flashcache_setlocks_multidrop(dmc, tmp_bio);
+
+	max_mem_cache_count = 
+		max_mem_cache_count > (int)(stat_info->credibility) ?
+		(int)(stat_info->credibility) :
+		max_mem_cache_count;
+
+	return mem_cache_alloc(dmc, stat_info, NULL, NULL, max_mem_cache_count);
 }
