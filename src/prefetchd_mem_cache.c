@@ -282,6 +282,9 @@ static int get_mem_cache_count(struct cache_c *dmc, struct prefetchd_stat_info *
 	return (int) result;
 }
 
+static void request_mem_cache(struct mem_cache *tar) {
+}
+
 static bool mem_cache_alloc(
 	struct cache_c *dmc,
 	struct prefetchd_stat_info *stat_info,
@@ -289,6 +292,112 @@ static bool mem_cache_alloc(
 	int *index,
 	int count
 ) {
+	/*
+	 * duplicate check NOT implement
+	 */
+
+	struct mem_cache *mem_caches[MAX_MEM_CACHE_COUNT_PER_PREFETCH];
+	struct mem_cache *tar;
+	long flags;
+	int i;
+	int need_count;
+	u64 sector_num;
+	unsigned int size;
+	struct bio bio_content;
+
+	if (tmp_bio == NULL) {
+		bio_content.bi_iter.bi_size = 0;
+	} else {
+		bio_content = *tmp_bio;
+	}
+
+	switch (stat_info->status) {
+	case sequential_forward:
+	case sequential_backward:
+		need_count = 1;
+		break;
+	case stride_forward:
+	case stride_backward:
+		need_count = count;
+		break;
+	default:
+		return false;
+	}
+
+	spin_lock_irqsave(&mem_cache_global_lock, flags);
+
+	if (mem_cache_free_list.count < need_count) {
+		spin_unlock_irqrestore(&mem_cache_global_lock, flags);
+		DPPRINTK("cache slot not enough.");
+		return false;
+	}
+
+	for (i = 0; i < need_count; i++) {
+		mem_caches[i] = mem_cache_list_remove(
+			&mem_cache_free_list,
+			mem_cache_free_list.head);
+		mem_cache_list_insert_tail(
+			&mem_cache_used_list,
+			mem_caches[i]);
+		mem_caches[i]->status = prepare;
+		sema_init(&(mem_caches[i]->lock), 0);
+		mem_caches[i]->hold_count = ATOMIC_INIT(0);
+		mem_caches[i]->used_count = ATOMIC_INIT(0);
+	}
+
+	spin_unlock_irqrestore(&mem_cache_global_lock, flags);
+
+	switch (stat_info->status) {
+	case sequential_forward:
+	case sequential_backward:
+		size = stat_info->last_size * (unsigned int)count;
+		break;
+	case stride_forward:
+	case stride_backward:
+		size = stat_info->last_size;
+		break;
+	}
+
+	for (i = 0; i < need_count; i++) {
+		switch (stat_info->status) {
+		case sequential_forward:
+			sector_num = stat_info->last_sector_num + ((u64)stat_info->last_size >> 9);
+			break;
+		case sequential_backward:
+			sector_num = stat_info->last_sector_num - ((u64)size >> 9);
+			break;
+		case stride_forward:
+			sector_num = stat_info->last_sector_num + 
+				stat_info->stride_count * (u64)(i + 1);
+			break;
+		case stride_backward:
+			sector_num = stat_info->last_sector_num -
+				stat_info->stride_count * (u64)(i + 1);
+			break;
+		}
+
+		tar = mem_caches[i];
+		tar->sector_num = sector_num;
+		tar->size = size;
+		tar->dmc = dmc;
+		tar->bio = bio_content;
+		tar->data = vmalloc((unsigned long)size);
+	}
+
+	switch (stat_info->status) {
+	case sequential_forward:
+	case stride_forward:
+		for (i = 0; i < need_count; i++) {
+			request_mem_cache(mem_caches[i]);
+		}
+		break;
+	default:
+		for (i = need_count - 1; i >= 0; i--) {
+			request_mem_cache(mem_caches[i]);
+		}
+	}
+
+	return true;
 }
 
 bool prefetchd_mem_cache_create(struct cache_c *dmc, struct prefetchd_stat_info *stat_info) {
