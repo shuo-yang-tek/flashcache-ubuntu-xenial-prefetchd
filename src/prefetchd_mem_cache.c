@@ -282,7 +282,10 @@ static int get_mem_cache_count(struct cache_c *dmc, struct prefetchd_stat_info *
 	return (int) result;
 }
 
-static void request_mem_cache(struct mem_cache *tar) {
+static void io_callback(unsigned long error, void *context) {
+}
+
+static void request_mem_cache(struct mem_cache *tar, int *index) {
 }
 
 static bool mem_cache_alloc(
@@ -327,6 +330,7 @@ static bool mem_cache_alloc(
 	spin_lock_irqsave(&mem_cache_global_lock, flags);
 
 	if (mem_cache_free_list.count < need_count) {
+		// scan used list
 		spin_unlock_irqrestore(&mem_cache_global_lock, flags);
 		DPPRINTK("cache slot not enough.");
 		return false;
@@ -388,12 +392,12 @@ static bool mem_cache_alloc(
 	case sequential_forward:
 	case stride_forward:
 		for (i = 0; i < need_count; i++) {
-			request_mem_cache(mem_caches[i]);
+			request_mem_cache(mem_caches[i], index);
 		}
 		break;
 	default:
 		for (i = need_count - 1; i >= 0; i--) {
-			request_mem_cache(mem_caches[i]);
+			request_mem_cache(mem_caches[i], index);
 		}
 	}
 
