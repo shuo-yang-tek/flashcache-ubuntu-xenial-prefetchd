@@ -5,6 +5,24 @@
 #include <linux/bio.h>
 #include <stdbool.h>
 
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,26)
+#if LINUX_VERSION_CODE > KERNEL_VERSION(2,6,21)
+#include <linux/device-mapper.h>
+#include <linux/bio.h>
+#endif
+#include "dm.h"
+#include "dm-io.h"
+#include "dm-bio-list.h"
+#include "kcopyd.h"
+#else
+#if LINUX_VERSION_CODE <= KERNEL_VERSION(2,6,27)
+#include "dm.h"
+#endif
+#include <linux/device-mapper.h>
+#include <linux/bio.h>
+#include <linux/dm-kcopyd.h>
+#endif
+
 #include "flashcache.h"
 #include "./prefetchd_log.h"
 #include "./prefetchd_stat.h"
