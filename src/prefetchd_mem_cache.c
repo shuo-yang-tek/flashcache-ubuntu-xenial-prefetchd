@@ -31,7 +31,7 @@
 DEFINE_SPINLOCK(mem_cache_global_lock);
 
 enum mem_cache_status {
-	not_used = 1,
+	empty = 1,
 	prepare,
 	active,
 };
@@ -163,7 +163,7 @@ void prefetchd_mem_cache_init() {
 	init_mem_cache_list(&mem_cache_free_list);
 
 	for (i = 0; i < MEM_CACHE_COUNT; i++) {
-		mem_cache_pool[i].status = not_used;
+		mem_cache_pool[i].status = empty;
 		mem_cache_list_insert_tail(&mem_cache_free_list, &(mem_cache_pool[i]));
 	}
 
@@ -229,6 +229,6 @@ bool prefetchd_mem_cache_handle_bio(struct bio *bio) {
 	return true;
 }
 
-bool prefetchd_mem_cache_create(struct cache_c dmc, *struct prefetchd_stat_info *stat_info) {
+bool prefetchd_mem_cache_create(struct cache_c *dmc, struct prefetchd_stat_info *stat_info) {
 	// basic size check
 }
