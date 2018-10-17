@@ -30,6 +30,11 @@
 
 DEFINE_SPINLOCK(mem_cache_global_lock);
 
+struct prefetch_io_info {
+	u64 sector_num;
+	unsigned int size;
+};
+
 enum mem_cache_status {
 	empty = 1,
 	prepare,
@@ -226,9 +231,18 @@ bool prefetchd_mem_cache_handle_bio(struct bio *bio) {
 	bio_endio(bio);
 
 	atomic_dec(&(mem_cache->hold_count));
+	DPPRINTK("MEM_CACHE Hit.");
 	return true;
 }
 
 bool prefetchd_mem_cache_create(struct cache_c *dmc, struct prefetchd_stat_info *stat_info) {
-	// basic size check
+	struct prefetch_io_info io_infos[MAX_MEM_CACHE_COUNT_PER_PREFETCH];
+	u64 disk_start = (dmc->tgt->begin) << 9;
+	u64 disk_len = (dmc->tgt->len) << 9;
+
+	// basic check
+	if (stat_info->status <= 2)
+		return false;
+	if (stat_info->last_size > SIZE_PER_MEM_CACHE)
+		return false;
 }

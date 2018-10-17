@@ -19,6 +19,7 @@ struct prefetchd_stat_info {
 	enum prefetchd_stat_status status;
 	u8 credibility;
 	u64 last_sector_num; // 512 bytes
+	u64 stride_count;
 	unsigned int last_size; // bytes
 };
 

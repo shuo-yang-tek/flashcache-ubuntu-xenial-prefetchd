@@ -231,6 +231,19 @@ void prefetchd_update_stat(int pid, struct bio *bio, struct prefetchd_stat_info 
 		info->credibility = verified_count > 0xFF ? 255 : (u8)(verified_count & 0xFF);
 		info->last_sector_num = stat->curr_req.sector_num;
 		info->last_size = stat->curr_req.size;
+
+		switch (stat->status) {
+		case sequential_forward:
+		case sequential_backward:
+			info->stride_count = 0;
+			break;
+		case stride_forward:
+			info->stride_count = stat->curr_req.sector_num - stat->prev_req.sector_num;
+			break;
+		case stride_backward:
+			info->stride_count = stat->prev_req.sector_num - stat->curr_req.sector_num;
+			break;
+		}
 	}
 
 	// unlock stat
