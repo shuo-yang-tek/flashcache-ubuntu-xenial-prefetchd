@@ -153,8 +153,8 @@ bool prefetchd_mem_cache_handle_bio(struct bio *bio) {
 	long flags;
 	struct mem_cache_list_elm *elm;
 	struct mem_cache *mem_cache;
-	u64 bio_start = bio->iter.bi_sector << 9;
-	u64 bio_end = bio_start + bio->iter.bi_size;
+	u64 bio_start = bio->bi_iter.bi_sector << 9;
+	u64 bio_end = bio_start + bio->bi_iter.bi_size;
 	u64 cache_start, cache_end;
 	bool need_sleep;
 	struct bio_vec bvec;
@@ -162,7 +162,7 @@ bool prefetchd_mem_cache_handle_bio(struct bio *bio) {
 	void *data_src;
 	void *data_dest;
 
-	if (bio->iter.bi_size > SIZE_PER_MEM_CACHE) return false;
+	if (bio->bi_iter.bi_size > SIZE_PER_MEM_CACHE) return false;
 	spin_lock_irqsave(&mem_cache_global_lock, flags);
 
 	elm = mem_cache_used_list.head;
