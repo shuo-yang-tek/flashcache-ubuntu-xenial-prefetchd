@@ -253,7 +253,7 @@ static int get_mem_cache_count(struct cache_c *dmc, struct prefetchd_stat_info *
 		b = (u64)(stat_info->last_size);
 		break;
 	case stride_forward:
-		a = len - ((stat_info->last_sector_num + stat_info->stride_count) << 9);
+		a = disk_len - ((stat_info->last_sector_num + stat_info->stride_count) << 9);
 		b = stat_info->stride_count;
 		break;
 	case stride_backward:
