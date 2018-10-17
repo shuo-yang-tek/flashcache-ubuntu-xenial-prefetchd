@@ -341,8 +341,8 @@ static bool mem_cache_alloc(
 			mem_caches[i]);
 		mem_caches[i]->status = prepare;
 		sema_init(&(mem_caches[i]->lock), 0);
-		mem_caches[i]->hold_count = ATOMIC_INIT(0);
-		mem_caches[i]->used_count = ATOMIC_INIT(0);
+		atomic_init(&(mem_caches[i]->hold_count), 0);
+		atomic_init(&(mem_caches[i]->used_count), 0);
 	}
 
 	spin_unlock_irqrestore(&mem_cache_global_lock, flags);
