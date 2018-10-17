@@ -1,3 +1,4 @@
+#include <linux/version.h>
 #include <linux/types.h>
 #include <linux/spinlock.h>
 #include <linux/semaphore.h>
