@@ -245,7 +245,7 @@ static int get_mem_cache_count(struct cache_c *dmc, struct prefetchd_stat_info *
 
 	switch (stat_info->status) {
 	case sequential_forward:
-		a = len - ((stat_info->last_sector_num << 9) + ((u64)(stat_info->last_size)));
+		a = disk_len - ((stat_info->last_sector_num << 9) + ((u64)(stat_info->last_size)));
 		b = (u64)(stat_info->last_size);
 		break;
 	case sequential_backward:
@@ -332,16 +332,16 @@ bool prefetchd_mem_cache_create(struct cache_c *dmc, struct prefetchd_stat_info 
 		return false;
 	}
 	tmp_bio.bi_iter.bi_size = stat_info->last_size;
-	flashcache_setlocks_multiget(dmc, tmp_bio);
+	flashcache_setlocks_multiget(dmc, &tmp_bio);
 	lookup_res = flashcache_lookup(dmc, &tmp_bio, &lookup_index);
 	if (lookup_res > 0) {
 		cacheblk = &dmc->cache[lookup_index];
 		if ((cacheblk->cache_state & VALID) && 
-		    (cacheblk->dbn == bio->bi_iter.bi_sector)) {
+		    (cacheblk->dbn == tmp_bio.bi_iter.bi_sector)) {
 			return mem_cache_alloc(dmc, stat_info, &tmp_bio, &lookup_index, 1);
 		}
 	}
-	flashcache_setlocks_multidrop(dmc, tmp_bio);
+	flashcache_setlocks_multidrop(dmc, &tmp_bio);
 
 	max_mem_cache_count = 
 		max_mem_cache_count > (int)(stat_info->credibility) ?

@@ -6,3 +6,4 @@
 
 void prefetchd_mem_cache_init(void);
 bool prefetchd_mem_cache_handle_bio(struct bio *bio);
+bool prefetchd_mem_cache_create(struct cache_c *dmc, struct prefetchd_stat_info *stat_info);
