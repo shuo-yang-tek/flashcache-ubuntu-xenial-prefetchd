@@ -4,7 +4,9 @@
 #include <linux/bio.h>
 #include <stdbool.h>
 
+#include "flashcache.h"
 #include "./prefetchd_log.h"
+#include "./prefetchd_stat.h"
 #include "./prefetchd_mem_cache.h"
 
 DEFINE_SPINLOCK(mem_cache_global_lock);
@@ -206,4 +208,8 @@ bool prefetchd_mem_cache_handle_bio(struct bio *bio) {
 
 	atomic_dec(&(mem_cache->hold_count));
 	return true;
+}
+
+bool prefetchd_mem_cache_create(struct cache_c dmc, *struct prefetchd_stat_info *stat_info) {
+	// basic size check
 }

@@ -62,6 +62,7 @@
 
 #ifdef PREFETCHD_ON
 #include "prefetchd_stat.h"
+#include "prefetchd_mem_cache.h"
 #endif
 
 struct cache_c *cache_list_head = NULL;
@@ -1904,6 +1905,7 @@ flashcache_init(void)
 
 #ifdef PREFETCHD_ON
 	prefetchd_stats_init();
+	prefetchd_mem_cache_init();
 #endif
 
 	return r;
