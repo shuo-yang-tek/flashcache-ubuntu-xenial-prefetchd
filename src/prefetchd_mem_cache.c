@@ -196,7 +196,7 @@ bool prefetchd_mem_cache_handle_bio(struct bio *bio) {
 		up(&(mem_cache->lock));
 	}
 
-	data_src = mem_cache->data + (void *)(bio_start - cache_start);
+	data_src = mem_cache->data + (bio_start - cache_start);
 	bio_for_each_segment(bvec, bio, iter) {
 		data_dest = kmap(bvec.bv_page) + bvec.bv_offset;
 		memcpy(data_dest, data_src, bvec.bv_len);
