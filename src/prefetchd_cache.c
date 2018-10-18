@@ -87,7 +87,7 @@ struct cache_meta_map {
 
 struct cache_meta_map_stack_elm {
 	struct cache_meta_map map;
-	struct cache_meta_map *next;
+	struct cache_meta_map_stack_elm *next;
 };
 
 struct cache_meta_map_stack {
