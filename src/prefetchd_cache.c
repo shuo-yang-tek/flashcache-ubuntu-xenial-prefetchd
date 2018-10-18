@@ -34,6 +34,12 @@
 			 ++(i), \
 			 (meta) = &(cache_metas[((i) + (map).index) % PREFETCHD_CACHE_PAGE_COUNT]))
 
+#define cache_meta_map_foreach_spec(arr, map, meta, i) \
+	for ((i) = 0, (meta) = &(arr)[(map).index]; \
+			 (i) < (map).count; \
+			 ++(i), \
+			 (meta) = &((arr)[((i) + (map).index) % PREFETCHD_CACHE_PAGE_COUNT]))
+
 #define size_to_page_count(size) ((size) >> PAGE_SHIFT)
 
 #define sector_num_to_cache_index(sector_num) \
@@ -89,6 +95,10 @@ struct cache_meta_map {
 struct cache_meta_map_stack_elm {
 	struct cache_meta_map map;
 	struct cache_meta_map_stack_elm *next;
+
+	struct cache_meta_map_stack *stack;
+	struct cache_meta *meta_arr;
+	spin_lock_t *global_lock;
 };
 
 struct cache_meta_map_stack {
@@ -111,6 +121,9 @@ static void init_map_stack(void) {
 			i == PREFETCHD_CACHE_PAGE_COUNT - 1 ?
 			NULL :
 			&(map_stack.pool[i + 1]);
+		map_stack.pool[i].stack = &map_stack;
+		map_stack.pool[i].meta_arr = cache_metas;
+		map_stack.pool[i].global_lock = &cache_global_lock;
 	}
 
 	map_stack.head = &(map_stack.pool[0]);
@@ -389,9 +402,9 @@ static void io_callback(unsigned long error, void *context) {
 
 	printk("===error %ld\n", error);
 	printk("===map (%d, %d)\n", map->index, map->count);
-	spin_lock_irqsave(&cache_global_lock, flags);
+	spin_lock_irqsave(elm->global_lock, flags);
 
-	cache_meta_map_foreach(*map, meta, i) {
+	cache_meta_map_foreach_spec(eml->meta_arr, *map, meta, i) {
 		printk("====aaa\n");
 		printk("====idx %d\n", (i + map->index) % PREFETCHD_CACHE_PAGE_COUNT);
 		meta->status = active;
@@ -400,8 +413,11 @@ static void io_callback(unsigned long error, void *context) {
 		printk("====ccc\n");
 	}
 
-	push_map_stack(elm);
-	spin_unlock_irqrestore(&cache_global_lock, flags);
+	elm->next = elm->stack->head;
+	elm->stack->head = elm;
+	elm->stack->count += 1;
+
+	spin_unlock_irqrestore(elm->global_lock, flags);
 
 end:
 	printk("io_callback: %ld\n", error);
