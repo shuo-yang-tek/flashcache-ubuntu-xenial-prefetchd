@@ -382,7 +382,10 @@ static void alloc_prefetch(
 	struct cache_meta_map_stack_elm *map_elm;
 	long flags;
 
-	if (index != NULL) return;
+	if (index != NULL) {
+		flashcache_setlocks_multidrop(dmc, tmp_bio);
+		return;
+	}
 
 	map_elm = pop_map_stack();
 	if (map_elm == NULL) {
