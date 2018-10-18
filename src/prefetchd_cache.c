@@ -268,7 +268,7 @@ get_prefetch_cache_count(
 		struct cache_c *dmc,
 		struct prefetchd_stat_info *info) {
 	u64 ret;
-	u64 last_page_count = info->last_size >> PAGE_SHIFT;
+	u64 last_page_count = (u64)info->last_size >> PAGE_SHIFT;
 
 	switch (info->status) {
 	case sequential_forward:
