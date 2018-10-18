@@ -43,9 +43,13 @@
 	(res)->index = sector_num_to_cache_index((sector_num)); \
 	(res)->count = size_to_page_count((size));
 
+#define is_request_fit_cache(sector_num, size) \
+	((((size) >> PAGE_SHIFT) <= PREFETCHD_CACHE_MAX_PAGE_COUNT_PER_CACHE) && \
+	!(((sector_num) % (PAGE_SIZE >> 9)) || \
+	(size) % PAGE_SIZE))
+
 #define is_bio_fit_cache(bio) \
-	(!(((bio)->bi_iter.bi_sector % (PAGE_SIZE >> 9)) || \
-	(bio)->bi_iter.bi_size % PAGE_SIZE))
+	is_request_fit_cache((bio)->bi_iter.bi_sector, (bio)->bi_iter.bi_size)
 
 extern void flashcache_setlocks_multiget(struct cache_c *dmc, struct bio *bio);
 extern void flashcache_setlocks_multidrop(struct cache_c *dmc, struct bio *bio);
@@ -179,4 +183,233 @@ cache_miss:
 		bio->bi_iter.bi_size >> 9);
 
 	return false;
+}
+
+static int 
+get_prefetch_cache_count(
+		struct cache_c *dmc,
+		struct prefetchd_stat_info *info) {
+	u64 ret;
+	u64 ret_by_cre = (u64)(info->last_size >> PAGE_SHIFT) *
+		(u64)info->credibility;
+	u64 last_page_count = info->last_size >> PAGE_SHIFT;
+
+	switch (info->status) {
+	case sequential_forward:
+		ret = info->last_sector_num + (info->last_size >> 9);
+		ret = dmc->tgt->len - ret;
+		ret /= (u64)(info->last_size >> 9);
+		break;
+	case sequential_backward:
+		ret = info->last_sector_num - dmc->tgt->begin;
+		ret /= (u64)(info->last_size >> 9);
+		break;
+	case stride_forward:
+		ret = info->last_sector_num + info->stride_count;
+		if (ret >= dmc->tgt->len) {
+			ret = 0;
+			break;
+		}
+		ret = dmc->tgt->len - ret;
+		ret = ret / info->stride_count;
+		break;
+	case stride_backward:
+		ret = info->last_sector_num - dmc->tgt->begin;
+		ret = ret / info->stride_count;
+		break;
+	}
+
+	ret = ret > (u64)(info->credibility) ?
+		(u64)(info->credibility) : ret;
+
+	ret = last_page_count * ret >
+		PREFETCHD_CACHE_MAX_PAGE_COUNT_PER_CACHE ?
+		PREFETCHD_CACHE_MAX_PAGE_COUNT_PER_CACHE / last_page_count :
+		ret;
+
+	return (int)ret;
+}
+
+inline static void get_stride_prefetch_step(
+		struct prefetchd_stat_info *info,
+		int idx,
+		u64 *sector_num,
+		unsigned int *size
+		) {
+	*size = info->last_size;
+	switch (info->status) {
+	case stride_forward:
+		*sector_num = info->last_sector_num + 
+			info->stride_count * (idx + 1);
+		break;
+	case stride_backward:
+		*sector_num =  info->last_sector_num -
+			info->stride_count * (idx + 1);
+		break;
+	default:
+		*size = 0;
+	}
+}
+
+inline static void get_seq_prefetch_step(
+		struct prefetchd_stat_info *info,
+		int idx,
+		u64 *sector_num,
+		unsigned int *size
+		) {
+	*size = (idx + 1) * info->last_size;
+	switch (info->status) {
+	case sequential_forward:
+		*sector_num = info->last_sector_num + (u64)((*size) >> 9);
+		break;
+	case sequential_backward:
+		*sector_num = info->last_sector_num - (u64)((*size) >> 9);
+		break;
+	default:
+		*size = 0;
+	}
+}
+
+static void alloc_prefetch(
+		struct cache_c *dmc,
+		struct bio *tmp_bio,
+		int *index,
+		u64 sector_num,
+		struct cache_meta_map *map
+		) {
+}
+
+void prefetchd_do_prefetch(
+		struct cache_c *dmc,
+		struct prefetchd_stat_info *info
+		) {
+	struct cache_meta_map map;
+	struct cache_meta *meta;
+	struct bio tmp_bio;
+	struct cacheblock *cacheblk;
+	int prefetch_count;
+	int i;
+	int lookup_index;
+	int lookup_res;
+	long flags;
+	u64 sector_num;
+	unsigned int size;
+
+	if (info->status <= 2) return;
+
+	if (!is_request_fit_cache(
+		info->last_sector_num,
+		info->last_size)) return;
+
+	prefetch_count = get_prefetch_cache_count(dmc, info);
+	if (prefetch_count <= 0) return;
+
+	// check mem cache
+	switch (info->status) {
+	case sequential_forward:
+	case sequential_backward:
+		get_seq_prefetch_step(info, 0, &sector_num, &size);
+		break;
+	case stride_forward:
+	case stride_backward:
+		get_stride_prefetch_step(info, 0, &sector_num, &size);
+		break;
+	}
+	get_cache_meta_map(
+			sector_num,
+			size,
+			&map);
+	spin_lock_irqsave(&cache_global_lock, flags); // lock
+	cache_meta_map_foreach(map, meta, i) {
+		if (meta->status == empty || meta->sector_num != sector_num)
+			goto mem_miss;
+	}
+	// mem cache hit
+	spin_unlock_irqrestore(&cache_global_lock, flags); // unlock
+	DPPRINTK("prefetch already exist. (%llu+%u)",
+			info->last_sector_num,
+			info->last_size >> 9);
+	return;
+
+mem_miss:
+	// check cache_metas available
+	cache_meta_map_foreach(map, meta, i) {
+		if (meta->status == prepare ||
+				(meta->status == active &&
+				 atomic_read(&(meta->hold_count)) > 0)) {
+			// can't prefetch
+			spin_unlock_irqrestore(&cache_global_lock, flags); // unlock
+			DPPRINTK("not enough room to prefetch. (%llu+%u)",
+					info->last_sector_num,
+					info->last_size >> 9);
+			return;
+		}
+	}
+
+	// check ssd content
+	tmp_bio.bi_iter.bi_sector = sector_num;
+	tmp_bio.bi_iter.bi_size = size;
+	flashcache_setlocks_multiget(dmc, &tmp_bio);
+	lookup_res = flashcache_lookup(dmc, &tmp_bio, &lookup_index);
+	if (lookup_res > 0) {
+		cacheblk = &dmc->cache[lookup_index];
+		if ((cacheblk->cache_state & VALID) && 
+		    (cacheblk->dbn == tmp_bio.bi_iter.bi_sector)) {
+			alloc_prefetch(
+					dmc,
+					&tmp_bio,
+					&lookup_index,
+					sector_num,
+					&map);
+			spin_unlock_irqrestore(&cache_global_lock, flags); / unlock
+			DPPRINTK("prefetch on ssd. (%llu+%u)",
+					sector_num,
+					size >> 9);
+			return;
+		}
+	}
+
+	// prefetch on hdd
+	flashcache_setlocks_multidrop(dmc, &tmp_bio);
+
+	switch (info->status) {
+	case sequential_forward:
+	case sequential_backward:
+		// seq case
+		get_seq_prefetch_step(
+				info,
+				prefetch_count - 1,
+				&sector_num,
+				&size);
+		get_cache_meta_map(
+				sector_num,
+				size,
+				&map);
+		// check metas is available
+		cache_meta_map_foreach(map, meta, i) {
+			if (meta->status == prepare || 
+					(meta->status == active &&
+					 atomic_read(meta->hold_count) > 0)) {
+				spin_unlock_irqrestore(&cache_global_lock, flags); // unlock
+				DPPRINTK("not enough room to prefetch. (%llu+%u)",
+						sector_num,
+						size >> 9);
+				return;
+			}
+		}
+		alloc_prefetch(
+				dmc,
+				NULL,
+				NULL,
+				sector_num,
+				&map);
+		break;
+	default:
+		// stride case
+	}
+
+	spin_unlock_irqrestore(&cache_global_lock, flags); // unlock
+	DPPRINTK("prefetch on hdd. (%llu+%u)",
+			info->last_sector_num,
+			info->last_size);
 }

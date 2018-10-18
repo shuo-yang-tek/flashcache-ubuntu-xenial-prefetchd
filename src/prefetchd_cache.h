@@ -4,6 +4,12 @@
 #include <stdbool.h>
 #include <linux/blk_types.h>
 
+#include "prefetchd_stat.h"
+
 bool prefetchd_cache_init(void);
 void prefetchd_cache_exit(void);
 bool prefetchd_cache_handle_bio(struct bio *bio);
+void prefetchd_do_prefetch(
+		struct cache_c *dmc,
+		struct prefetchd_stat_info *info
+		);
