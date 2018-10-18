@@ -78,6 +78,7 @@ struct cache_meta {
 	struct cache_c *dmc;
 	struct bio tmp_bio;
 	int index;
+	bool from_ssd;
 };
 
 struct cache_meta_map {
@@ -382,6 +383,10 @@ static void alloc_prefetch(
 	long flags;
 
 	if (index != NULL) return;
+	if (dmc->disk_dev == NULL) {
+		DPPRINTK("disk_dev is NULL");
+		return;
+	}
 
 	map_elm = pop_map_stack();
 	if (map_elm == NULL) {
@@ -399,7 +404,12 @@ static void alloc_prefetch(
 		if (tmp_bio != NULL) {
 			meta->tmp_bio = *tmp_bio;
 		}
-		meta->index = *index;
+		if (index != NULL) {
+			meta->index = *index;
+			meta->from_ssd = true;
+		} else {
+			meta->from_ssd = false;
+		}
 	}
 
 	if (index == NULL) {
@@ -407,16 +417,16 @@ static void alloc_prefetch(
 		req.bi_op = READ;
 		req.bi_op_flags = 0;
 		req.notify.fn = (io_notify_fn)io_callback;
-		req.notify.context = map_elm;
+		req.notify.context = (void *)map_elm;
 		req.client = hdd_client;
 		req.mem.type = DM_IO_VMA;
 		req.mem.offset = 0;
 		req.mem.ptr.vma = (void *)cache_content + 
-			(map->index << PAGE_SHIFT);
+			((u64)(map->index) << PAGE_SHIFT);
 
 		region.bdev = dmc->disk_dev->bdev;
 		region.sector = sector_num;
-		region.count = (u64)(map->count * PAGE_SIZE / dmc->disk_dev->bdev->bd_block_size);
+		region.count = (u64)(map->count) << (PAGE_SHIFT - 9);
 	} else {
 		// SSD case
 	}
