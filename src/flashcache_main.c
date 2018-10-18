@@ -93,8 +93,8 @@ static void flashcache_dirty_writeback(struct cache_c *dmc, int index);
 void flashcache_sync_blocks(struct cache_c *dmc);
 static void flashcache_start_uncached_io(struct cache_c *dmc, struct bio *bio);
 
-static void flashcache_setlocks_multiget(struct cache_c *dmc, struct bio *bio);
-static void flashcache_setlocks_multidrop(struct cache_c *dmc, struct bio *bio);
+void flashcache_setlocks_multiget(struct cache_c *dmc, struct bio *bio);
+void flashcache_setlocks_multidrop(struct cache_c *dmc, struct bio *bio);
 
 extern struct work_struct _kcached_wq;
 extern u_int64_t size_hist[];
@@ -1588,7 +1588,7 @@ flashcache_read(struct cache_c *dmc, struct bio *bio)
  * To prevent Lock Order Reversals (and deadlocks), always grab
  * the cache set locks in ascending order.
  */
-static void
+void
 flashcache_setlocks_multiget(struct cache_c *dmc, struct bio *bio)
 {
 	int start_set = hash_block(dmc, bio->bi_iter.bi_sector);
@@ -1600,7 +1600,7 @@ flashcache_setlocks_multiget(struct cache_c *dmc, struct bio *bio)
 		spin_lock(&dmc->cache_sets[end_set].set_spin_lock);
 }
 
-static void
+void
 flashcache_setlocks_multidrop(struct cache_c *dmc, struct bio *bio)
 {
 	int start_set = hash_block(dmc, bio->bi_iter.bi_sector);
