@@ -388,7 +388,7 @@ static void io_callback(unsigned long error, void *context) {
 	int i;
 	long flags;
 
-	if (error) goto end;
+	/*if (error) goto end;*/
 
 	elm = (struct cache_meta_map_stack_elm *)context;
 	map = &(elm->map);
