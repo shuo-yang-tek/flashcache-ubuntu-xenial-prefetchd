@@ -251,7 +251,8 @@ bool prefetchd_cache_handle_bio(struct bio *bio) {
 		atomic_dec(&(meta->hold_count));
 	}
 
-	DPPRINTK("cache hit: %llu+%u",
+	DPPRINTK("%c[1;33mcache hit: %llu+%u",
+		27,
 		bio->bi_iter.bi_sector,
 		bio->bi_iter.bi_size >> 9);
 
@@ -259,7 +260,8 @@ bool prefetchd_cache_handle_bio(struct bio *bio) {
 
 cache_miss:
 	spin_unlock_irqrestore(&cache_global_lock, flags);
-	DPPRINTK("cache miss: %llu+%u",
+	DPPRINTK("%c[1;31mcache miss: %llu+%u",
+		27,
 		bio->bi_iter.bi_sector,
 		bio->bi_iter.bi_size >> 9);
 
