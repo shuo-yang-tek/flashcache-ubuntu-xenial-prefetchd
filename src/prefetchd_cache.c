@@ -308,7 +308,7 @@ get_prefetch_cache_count(
 	u64 disk_start = dmc->disk_dev->bdev->bd_part->start_sect;
 	u64 disk_sect_count = dmc->disk_dev->bdev->bd_part->nr_sects;
 	unsigned disk_block_size = dmc->disk_dev->bdev->bd_block_size;
-	u64 fact_tmp = disk_block_size >> 512;
+	u64 fact_tmp = disk_block_size >> 9;
 	u64 disk_sect_len;
 
 	disk_start /= fact_tmp;
