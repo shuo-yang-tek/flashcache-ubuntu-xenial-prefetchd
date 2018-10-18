@@ -138,8 +138,6 @@ bool prefetchd_cache_handle_bio(struct bio *bio) {
 		bio->bi_iter.bi_size,
 		&map);
 
-	printk("**** %d, %d\n", map.index, map.count);
-
 	spin_lock_irqsave(&cache_global_lock, flags);
 
 	cache_meta_map_foreach(map, meta, i) {
@@ -285,9 +283,9 @@ static void alloc_prefetch(
 	if (index != NULL)
 		ex_flashcache_setlocks_multidrop(dmc, tmp_bio);
 
-	DPPRINTK("--- get (%llu+%u) on %s.",
+	DPPRINTK("--- get (%llu+%d) on %s.",
 			sector_num,
-			map->count << (PAGE_SIZE - 9),
+			(map->count) << (PAGE_SIZE - 9),
 			index == NULL ? "HDD" : "SSD");
 }
 
