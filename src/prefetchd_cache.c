@@ -34,6 +34,19 @@
 			 ++(i), \
 			 (meta) = &cache_metas[((i) + (map).index) % PREFETCHD_CACHE_PAGE_COUNT])
 
+#define size_to_page_count(size) ((size) >> PAGE_SHIFT)
+
+#define sector_num_to_cache_index(sector_num) \
+	(((sector_num) >> (PAGE_SHIFT - 9)) % PREFETCHD_CACHE_PAGE_COUNT)
+
+#define get_cache_meta(sector_num, size, res) \
+	(res)->index = sector_num_to_cache_index((sector_num)); \
+	(res)->count = size_to_page_count((size));
+
+#define is_bio_fit_cache(bio) \
+	(!(((bio)->bi_iter.bi_sector % (PAGE_SIZE >> 9)) || \
+	(bio)->bi_iter.bi_size % PAGE_SIZE))
+
 extern void flashcache_setlocks_multiget(struct cache_c *dmc, struct bio *bio);
 extern void flashcache_setlocks_multidrop(struct cache_c *dmc, struct bio *bio);
 extern int flashcache_lookup(struct cache_c *dmc, struct bio *bio, int *index);
@@ -62,20 +75,6 @@ struct cache_meta_map {
 	int index;
 	int count;
 };
-
-inline static unsigned int size_to_page_count(unsigned int size) {
-	return (PAGE_SIZE - (size % PAGE_SIZE) + size) >> PAGE_SHIFT;
-}
-
-inline static void
-get_cache_meta_map(u64 sector_num, unsigned int size, struct cache_meta_map *res) {
-	long len = (long)size - (long)(PAGE_SIZE - ((sector_num << 9) % PAGE_SIZE));
-	res->index = sector_num >> (PAGE_SHIFT - 9);
-	if (len <= 0)
-		res->count = 1;
-	else
-		res->count = size_to_page_count(len);
-}
 
 static void *cache_content;
 static struct cache_meta *cache_metas;
@@ -119,11 +118,12 @@ bool prefetchd_cache_handle_bio(struct bio *bio) {
 	long flags;
 	int i;
 	u64 sector_num;
-	s64 sector_diff;
 	void *data_src;
 	void *data_dest;
 	struct bio_vec bvec;
 	struct bvec_iter iter;
+
+	if (!is_bio_fit_cache(bio)) return false;
 
 	get_cache_meta_map(
 		bio->bi_iter.bi_sector,
@@ -136,8 +136,7 @@ bool prefetchd_cache_handle_bio(struct bio *bio) {
 		if (meta->status == empty)
 			goto cache_miss;
 		sector_num = bio->bi_iter.bi_sector + (i << (PAGE_SHIFT - 9));
-		sector_diff = (s64)sector_num - (s64)(meta->sector_num);
-		if (sector_diff < 0 || sector_diff > (PAGE_SIZE >> 9))
+		if (sector_num != meta->sector_num)
 			goto cache_miss;
 	}
 
