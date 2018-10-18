@@ -66,6 +66,7 @@
 
 #ifdef PREFETCHD_ON
 #include "prefetchd_stat.h"
+#include "prefetchd_cache.h"
 #endif
 #include "prefetchd_log.h"
 
