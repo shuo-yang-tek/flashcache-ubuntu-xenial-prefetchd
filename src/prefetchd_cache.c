@@ -112,7 +112,7 @@ static void init_map_stack(void) {
 			&(map_stack->pool[i + 1]);
 	}
 
-	map_stack->head = &(map_stack->pool[i]);
+	map_stack->head = &(map_stack->pool[0]);
 	map_stack->count = PREFETCHD_CACHE_PAGE_COUNT;
 }
 
