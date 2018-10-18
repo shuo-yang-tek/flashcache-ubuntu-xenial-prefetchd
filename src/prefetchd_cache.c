@@ -383,10 +383,6 @@ static void alloc_prefetch(
 	long flags;
 
 	if (index != NULL) return;
-	if (dmc->disk_dev == NULL) {
-		DPPRINTK("disk_dev is NULL");
-		return;
-	}
 
 	map_elm = pop_map_stack();
 	if (map_elm == NULL) {
@@ -396,7 +392,7 @@ static void alloc_prefetch(
 	map_elm->map = *map;
 
 	cache_meta_map_foreach(*map, meta, i) {
-		meta->sector_num = sector_num + (i << (PAGE_SHIFT - 9));
+		meta->sector_num = sector_num + ((u64)i << (PAGE_SHIFT - 9));
 		meta->status = prepare;
 		sema_init(&(meta->prepare_lock), 0);
 		atomic_set(&(meta->hold_count), 0);
