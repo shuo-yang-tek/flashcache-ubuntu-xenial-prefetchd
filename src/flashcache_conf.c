@@ -1940,6 +1940,9 @@ flashcache_exit(void)
 	flashcache_jobs_exit();
 	flashcache_module_procfs_release();
 	kfree(flashcache_control);
+#ifdef PREFETCHD_ON
+	prefetchd_cache_exit();
+#endif
 }
 
 module_init(flashcache_init);

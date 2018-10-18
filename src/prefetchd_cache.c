@@ -97,6 +97,7 @@ bool prefetchd_cache_init() {
 		cache_metas[i].status = empty;
 	}
 
+	DPPRINTK("prefetchd_cache initialized.");
 	return true;
 
 free_content:
