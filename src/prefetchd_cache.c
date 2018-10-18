@@ -98,7 +98,7 @@ struct cache_meta_map_stack_elm {
 
 	struct cache_meta_map_stack *stack;
 	struct cache_meta *meta_arr;
-	spin_lock_t *global_lock;
+	pthread_mutex_t *global_lock;
 };
 
 struct cache_meta_map_stack {
@@ -404,7 +404,7 @@ static void io_callback(unsigned long error, void *context) {
 	printk("===map (%d, %d)\n", map->index, map->count);
 	spin_lock_irqsave(elm->global_lock, flags);
 
-	cache_meta_map_foreach_spec(eml->meta_arr, *map, meta, i) {
+	cache_meta_map_foreach_spec(elm->meta_arr, *map, meta, i) {
 		printk("====aaa\n");
 		printk("====idx %d\n", (i + map->index) % PREFETCHD_CACHE_PAGE_COUNT);
 		meta->status = active;
