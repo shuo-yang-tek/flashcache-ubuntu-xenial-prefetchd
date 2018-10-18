@@ -176,7 +176,6 @@ void prefetchd_cache_exit() {
 	vfree(cache_content);
 	dm_io_client_destroy(hdd_client);
 	dm_io_client_destroy(ssd_client);
-	vfree((void *)map_stack);
 }
 
 bool prefetchd_cache_handle_bio(struct bio *bio) {
