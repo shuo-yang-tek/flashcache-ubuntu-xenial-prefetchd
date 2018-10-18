@@ -25,7 +25,7 @@ ifneq "$(OPENVZ_VER)" ""
 endif
 
 obj-m += flashcache.o
-flashcache-objs := flashcache_conf.o flashcache_main.o flashcache_subr.o flashcache_ioctl.o flashcache_procfs.o flashcache_reclaim.o flashcache_kcopy.o prefetchd_stat.o prefetchd_mem_cache.o
+flashcache-objs := flashcache_conf.o flashcache_main.o flashcache_subr.o flashcache_ioctl.o flashcache_procfs.o flashcache_reclaim.o flashcache_kcopy.o prefetchd_stat.o prefetchd_cache.o
 
 .PHONY: all
 all: modules
