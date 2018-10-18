@@ -313,7 +313,7 @@ get_prefetch_cache_count(
 
 	disk_start /= fact_tmp;
 	disk_sect_count /= fact_tmp;
-	disk_len = disk_start + disk_sect_count;
+	disk_sect_len = disk_start + disk_sect_count;
 
 	switch (info->status) {
 	case sequential_forward:
