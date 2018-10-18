@@ -386,7 +386,7 @@ static void io_callback(unsigned long error, void *context) {
 
 	printk("===error %ld\n", error);
 	printk("===map (%d, %d)\n", map->index, map->count);
-	spin_lock(&cache_global_lock);
+	/*spin_lock(&cache_global_lock);*/
 
 	cache_meta_map_foreach(*map, meta, i) {
 		printk("====aaa\n");
@@ -398,7 +398,7 @@ static void io_callback(unsigned long error, void *context) {
 	}
 
 	push_map_stack(elm);
-	spin_unlock(&cache_global_lock);
+	/*spin_unlock(&cache_global_lock);*/
 
 	printk("io_callback: %ld\n", error);
 }
