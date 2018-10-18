@@ -360,6 +360,7 @@ static void io_callback(unsigned long error, void *context) {
 		up(&(meta->prepare_lock));
 	}
 
+	push_map_stack(elm);
 	spin_unlock_irqrestore(&cache_global_lock, flags);
 
 	DPPRINTK("io_callback: %ld", error);
@@ -378,11 +379,13 @@ static void alloc_prefetch(
 	struct dm_io_region region;
 	int dm_io_ret;
 	struct cache_meta_map_stack_elm *map_elm;
+	long flags;
 
 	if (index != NULL) return;
 
 	map_elm = pop_map_stack();
 	if (map_elm == NULL) {
+		spin_unlock_irqrestore($cache_global_lock, flags);
 		DPPRINTK("map_stack leak.");
 		return;
 	}
