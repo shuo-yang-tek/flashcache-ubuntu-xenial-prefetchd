@@ -77,6 +77,7 @@ struct cache_meta {
 	// for droping dmc lock
 	struct cache_c *dmc;
 	struct bio tmp_bio;
+	int *index;
 };
 
 struct cache_meta_map {
@@ -84,8 +85,53 @@ struct cache_meta_map {
 	int count;
 };
 
+struct cache_meta_map_stack_elm {
+	struct cache_meta_map map;
+	struct cache_meta_map *next;
+};
+
+struct cache_meta_map_stack {
+	struct cache_meta_map_stack_elm pool[PREFETCHD_CACHE_PAGE_COUNT];
+	struct cache_meta_map_stack_elm *head;
+	int count;
+};
+
 static void *cache_content;
 static struct cache_meta *cache_metas;
+static struct dm_io_client *hdd_client;
+static struct dm_io_client *ssd_client;
+static struct cache_meta_map_stack *map_stack;
+
+static void init_map_stack(void) {
+	int i;
+
+	for (i = 0; i < PREFETCHD_CACHE_PAGE_COUNT; i++) {
+		map_stack->pool[i].next =
+			i == PREFETCHD_CACHE_PAGE_COUNT - 1 ?
+			NULL :
+			&(map_stack->pool[i + 1]);
+	}
+
+	map_stack->head = &(map_stack->pool[i]);
+	map_stack->count = PREFETCHD_CACHE_PAGE_COUNT;
+}
+
+static struct cache_meta_map_stack_elm *pop_map_stack(void) {
+	struct cache_meta_map_stack_elm *ret;
+
+	if (map_stack->count <= 0) return NULL;
+	ret = map_stack->head;
+	map_stack->head = map_stack->head->next;
+	ret->next = NULL;
+	map_stack->count -= 1;
+	return ret;
+}
+
+static void push_map_stack(struct cache_meta_map_stack_elm *elm) {
+	elm->next = map_stack->head;
+	map_stack->head = elm;
+	map_stack->count += 1;
+}
 
 bool prefetchd_cache_init() {
 	int i;
@@ -100,12 +146,36 @@ bool prefetchd_cache_init() {
 	if (cache_metas == NULL)
 		goto free_content;
 
+	hdd_client = dm_io_client_create();
+	if (IS_ERR(hdd_client))
+		goto free_metas;
+
+	ssd_client = dm_io_client_create();
+	if (IS_ERR(ssd_client))
+		goto free_hdd_client;
+
+	map_stack = (struct cache_meta_map_stack *)
+		vmalloc(sizeof(struct cache_meta_map_stack));
+	if (map_stack == NULL)
+		goto free_ssd_client;
+
 	for (i = 0; i < PREFETCHD_CACHE_PAGE_COUNT; i++) {
 		cache_metas[i].status = empty;
 	}
 
+	init_map_stack();
+
 	DPPRINTK("prefetchd_cache initialized.");
 	return true;
+
+free_ssd_client:
+	dm_io_client_destroy(ssd_client);
+
+free_hdd_client:
+	dm_io_client_destroy(hdd_client);
+
+free_metas:
+	vfree((void *)cache_meta);
 
 free_content:
 	vfree(cache_content);
@@ -118,6 +188,8 @@ fail_log:
 void prefetchd_cache_exit() {
 	vfree(cache_content);
 	vfree((void *)cache_metas);
+	dm_io_client_destroy(hdd_client);
+	dm_io_client_destroy(ssd_client);
 }
 
 bool prefetchd_cache_handle_bio(struct bio *bio) {
@@ -272,6 +344,26 @@ inline static void get_seq_prefetch_step(
 	}
 }
 
+static void io_callback(unsigned long error, void *context) {
+	struct cache_meta_map_stack_elm *elm
+		= (struct cache_meta_map_stack_elm *)context;
+	struct cache_meta_map *map = elm->map;
+	struct cache_meta *meta;
+	int i;
+	long flags;
+
+	spin_lock_irqsave(&cache_global_lock, flags);
+
+	cache_meta_map_foreach(&map, meta, i) {
+		meta->status = active;
+		up(&(meta->prepare_lock));
+	}
+
+	spin_unlock_irqrestore(&cache_global_lock, flags);
+
+	DPPRINTK("io_callback: %ld", error);
+}
+
 static void alloc_prefetch(
 		struct cache_c *dmc,
 		struct bio *tmp_bio,
@@ -279,14 +371,65 @@ static void alloc_prefetch(
 		u64 sector_num,
 		struct cache_meta_map *map
 		) {
+	int i;
+	struct cache_meta *meta;
+	struct dm_io_request req;
+	struct dm_io_region region;
+	int dm_io_ret;
+	struct cache_meta_map_stack_elm *map_elm;
 
-	if (index != NULL)
-		ex_flashcache_setlocks_multidrop(dmc, tmp_bio);
+	if (index != NULL) return;
 
-	DPPRINTK("--- get (%llu+%d) on %s.",
+	map_elm = pop_map_stack();
+	if (map_elm == NULL) {
+		DPPRINTK("map_stack leak.");
+		return;
+	}
+	map_elm->map = *map;
+
+	cache_meta_map_foreach(*map, meta, i) {
+		meta->sector_num = sector_num + (i << (PAGE_SHIFT - 9));
+		meta->status = prepare;
+		sema_init(&(meta->prepare_lock), 0);
+		atomic_set(&(meta->hold_count), 0);
+		meta->dmc = dmc;
+		if (tmp_bio != NULL) {
+			meta->tmp_bio = *tmp_bio;
+		}
+		meta->index = index;
+	}
+
+	if (index == NULL) {
+		// HDD case
+		req.bi_op = READ;
+		req.bi_op_flags = 0;
+		req.notify.fn = (io_notify_fn)io_callback;
+		req.notify.context = map_elm;
+		req.client = hdd_client;
+		req.mem.type = DM_IO_VMA;
+		req.mem.offset = 0;
+		req.mem.ptr.vma = (void *)cache_content + 
+			(map->index << PAGE_SHIFT);
+
+		region.bdev = dmc->disk_dev->bdev;
+		region.sector = sector_num;
+		region.count = (u64)(map->count * PAGE_SIZE / dmc->disk_dev->bdev->bd_block_size);
+	} else {
+		// SSD case
+	}
+
+	dm_io_ret = dm_io(&req, 1, &region, NULL);
+	if (dm_io_ret) {
+		cache_meta_map_foreach(*map, meta, i) {
+			meta->status = empty;
+		}
+	}
+
+	DPPRINTK("prefetch (%llu+%d) on %s: %s.",
 			sector_num,
 			(map->count) << (PAGE_SHIFT - 9),
-			index == NULL ? "HDD" : "SSD");
+			index == NULL ? "HDD" : "SSD",
+			dm_io_ret ? "Failed" : "Sent");
 }
 
 void prefetchd_do_prefetch(
@@ -370,9 +513,6 @@ mem_miss:
 					sector_num,
 					&map);
 			spin_unlock_irqrestore(&cache_global_lock, flags); // unlock
-			DPPRINTK("prefetch on ssd. (%llu+%u)",
-					sector_num,
-					size >> 9);
 			return;
 		}
 	}
@@ -476,9 +616,5 @@ mem_miss:
 			}
 		}
 	}
-
 	spin_unlock_irqrestore(&cache_global_lock, flags); // unlock
-	DPPRINTK("prefetch on hdd. (%llu+%u)",
-			info->last_sector_num,
-			info->last_size >> 9);
 }
