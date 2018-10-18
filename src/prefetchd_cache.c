@@ -32,7 +32,7 @@
 	for ((i) = 0, (meta) = &cache_metas[(map).index]; \
 			 (i) < (map).count; \
 			 ++(i), \
-			 (meta) = &cache_metas[((i) + (map).index) % PREFETCHD_CACHE_PAGE_COUNT])
+			 (meta) = &(cache_metas[((i) + (map).index) % PREFETCHD_CACHE_PAGE_COUNT]))
 
 #define size_to_page_count(size) ((size) >> PAGE_SHIFT)
 
@@ -393,12 +393,13 @@ static void io_callback(unsigned long error, void *context) {
 	elm = (struct cache_meta_map_stack_elm *)context;
 	map = &(elm->map);
 
-	printk("===error %l\n", error);
+	printk("===error %ld\n", error);
 	printk("===map (%d, %d)\n", map->index, map->count);
 	spin_lock_irqsave(&cache_global_lock, flags);
 
 	cache_meta_map_foreach(*map, meta, i) {
 		printk("====aaa\n");
+		printk("====idx %d\n", (i + map->index) % PREFETCHD_CACHE_PAGE_COUNT);
 		meta->status = active;
 		printk("====bbb\n");
 		up(&(meta->prepare_lock));
