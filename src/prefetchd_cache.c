@@ -383,7 +383,7 @@ static void alloc_prefetch(
 	long flags;
 
 	if (index != NULL) {
-		flashcache_setlocks_multidrop(dmc, tmp_bio);
+		ex_flashcache_setlocks_multidrop(dmc, tmp_bio);
 		return;
 	}
 
