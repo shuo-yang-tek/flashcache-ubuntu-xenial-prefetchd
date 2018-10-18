@@ -1476,17 +1476,7 @@ flashcache_read(struct cache_c *dmc, struct bio *bio)
 
 #ifdef PREFETCHD_ON
 	struct prefetchd_stat_info prefetchd_stat_info;
-
 	prefetchd_update_stat(current->pid, bio, &prefetchd_stat_info);
-#ifdef PREFETCHD_DEBUG
-	if (prefetchd_stat_info.status > 2) {
-		DPPRINTK("Update %llu+%u credibility=%d pid=%d",
-				prefetchd_stat_info.last_sector_num,
-				prefetchd_stat_info.last_size,
-				prefetchd_stat_info.credibility,
-				current->pid);
-	}
-#endif
 	if (prefetchd_cache_handle_bio(bio)) return;
 #endif
 	

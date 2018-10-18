@@ -248,4 +248,14 @@ void prefetchd_update_stat(int pid, struct bio *bio, struct prefetchd_stat_info 
 
 	// unlock stat
 	spin_unlock(&prefetchd_stat_lock);
+
+#ifdef PREFETCHD_DEBUG
+	if (info->status > 2) {
+		DPPRINTK("update stat (%llu+%u). pid=%d. credibility=%d",
+				info-last_sector_num,
+				info->last_size >> 9,
+				pid,
+				info->credibility);
+	}
+#endif
 }
