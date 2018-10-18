@@ -285,7 +285,7 @@ static void alloc_prefetch(
 
 	DPPRINTK("--- get (%llu+%d) on %s.",
 			sector_num,
-			(map->count) << (PAGE_SIZE - 9),
+			(map->count) << (PAGE_SHIFT - 9),
 			index == NULL ? "HDD" : "SSD");
 }
 
