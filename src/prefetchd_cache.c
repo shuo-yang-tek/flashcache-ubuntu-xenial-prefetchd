@@ -175,7 +175,7 @@ free_hdd_client:
 	dm_io_client_destroy(hdd_client);
 
 free_metas:
-	vfree((void *)cache_meta);
+	vfree((void *)cache_metas);
 
 free_content:
 	vfree(cache_content);
@@ -347,14 +347,14 @@ inline static void get_seq_prefetch_step(
 static void io_callback(unsigned long error, void *context) {
 	struct cache_meta_map_stack_elm *elm
 		= (struct cache_meta_map_stack_elm *)context;
-	struct cache_meta_map *map = elm->map;
+	struct cache_meta_map *map = &(elm->map);
 	struct cache_meta *meta;
 	int i;
 	long flags;
 
 	spin_lock_irqsave(&cache_global_lock, flags);
 
-	cache_meta_map_foreach(&map, meta, i) {
+	cache_meta_map_foreach(*map, meta, i) {
 		meta->status = active;
 		up(&(meta->prepare_lock));
 	}
