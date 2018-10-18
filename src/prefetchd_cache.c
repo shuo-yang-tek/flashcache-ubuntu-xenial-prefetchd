@@ -305,27 +305,37 @@ get_prefetch_cache_count(
 	u64 ret;
 	u64 last_page_count = (u64)info->last_size >> PAGE_SHIFT;
 
+	u64 disk_start = dmc->disk_dev->bd_part->start_sect;
+	u64 disk_sect_count = dmc->disk_dev->bd_part->nr_sects;
+	unsigned disk_block_size = dmc->disk_dev->bd_block_size;
+	u64 fact_tmp = disk_block_size >> 512;
+	u64 disk_sect_len;
+
+	disk_start /= fact_tmp;
+	disk_sect_count /= fact_tmp;
+	disk_len = disk_start + disk_sect_count;
+
 	switch (info->status) {
 	case sequential_forward:
 		ret = info->last_sector_num + (info->last_size >> 9);
-		ret = dmc->tgt->len - ret;
+		ret = disk_sect_len - ret;
 		ret /= (u64)(info->last_size >> 9);
 		break;
 	case sequential_backward:
-		ret = info->last_sector_num - dmc->tgt->begin;
+		ret = info->last_sector_num - disk_start;
 		ret /= (u64)(info->last_size >> 9);
 		break;
 	case stride_forward:
 		ret = info->last_sector_num + info->stride_count;
-		if (ret >= dmc->tgt->len) {
+		if (ret >= disk_sect_len) {
 			ret = 0;
 			break;
 		}
-		ret = dmc->tgt->len - ret;
+		ret = disk_sect_len - ret;
 		ret = ret / info->stride_count;
 		break;
 	case stride_backward:
-		ret = info->last_sector_num - dmc->tgt->begin;
+		ret = info->last_sector_num - disk_start;
 		ret = ret / info->stride_count;
 		break;
 	}
