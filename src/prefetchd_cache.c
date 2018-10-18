@@ -261,7 +261,7 @@ bool prefetchd_cache_handle_bio(struct bio *bio) {
 
 	bio_endio(bio);
 
-	DPPRINTK("----hh");
+	DPPRINTK("----ii");
 
 	cache_meta_map_foreach(map, meta, i) {
 		atomic_dec(&(meta->hold_count));
