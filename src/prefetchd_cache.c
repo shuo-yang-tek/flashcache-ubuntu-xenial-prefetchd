@@ -348,12 +348,16 @@ inline static void get_seq_prefetch_step(
 }
 
 static void io_callback(unsigned long error, void *context) {
-	struct cache_meta_map_stack_elm *elm
-		= (struct cache_meta_map_stack_elm *)context;
-	struct cache_meta_map *map = &(elm->map);
+	struct cache_meta_map_stack_elm *elm;
+	struct cache_meta_map *map;
 	struct cache_meta *meta;
 	int i;
 	long flags;
+
+	if (error) goto end;
+
+	elm = (struct cache_meta_map_stack_elm *)context;
+	map = &(elm->map);
 
 	spin_lock_irqsave(&cache_global_lock, flags);
 
@@ -365,6 +369,7 @@ static void io_callback(unsigned long error, void *context) {
 	push_map_stack(elm);
 	spin_unlock_irqrestore(&cache_global_lock, flags);
 
+end:
 	DPPRINTK("io_callback: %ld", error);
 }
 
