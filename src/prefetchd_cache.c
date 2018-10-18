@@ -220,6 +220,10 @@ bool prefetchd_cache_handle_bio(struct bio *bio) {
 		bio->bi_iter.bi_size,
 		&map);
 
+	DPPRINTK("----ee (%d, %d)",
+			map.index,
+			map.count);
+
 	spin_lock_irqsave(&cache_global_lock, flags);
 
 	cache_meta_map_foreach(map, meta, i) {
@@ -230,9 +234,13 @@ bool prefetchd_cache_handle_bio(struct bio *bio) {
 			goto cache_miss;
 	}
 
+	DPPRINTK("----ff");
+
 	cache_meta_map_foreach(map, meta, i) {
 		atomic_inc(&(meta->hold_count));
 	}
+
+	DPPRINTK("----gg");
 
 	spin_unlock_irqrestore(&cache_global_lock, flags);
 
@@ -242,6 +250,8 @@ bool prefetchd_cache_handle_bio(struct bio *bio) {
 			up(&(meta->prepare_lock));
 		}
 	}
+
+	DPPRINTK("----hh");
 
 	src_offset = ((u64)(map.index) << PAGE_SHIFT);
 	data_src = cache_content + src_offset;
@@ -266,6 +276,8 @@ bool prefetchd_cache_handle_bio(struct bio *bio) {
 	}
 
 	bio_endio(bio);
+
+	DPPRINTK("----hh");
 
 	cache_meta_map_foreach(map, meta, i) {
 		atomic_dec(&(meta->hold_count));
