@@ -29,10 +29,10 @@
 #include "./prefetchd_cache.h"
 
 #define cache_meta_map_foreach(map, meta, i) \
-	for ((i) = 0, (meta) = cache_metas[(map).index]; \
+	for ((i) = 0, (meta) = &cache_metas[(map).index]; \
 			 (i) < (map).count; \
 			 ++(i), \
-			 (meta) = cache_metas[((i) + (map).index) % PREFETCHD_CACHE_PAGE_COUNT])
+			 (meta) = &cache_metas[((i) + (map).index) % PREFETCHD_CACHE_PAGE_COUNT])
 
 extern void flashcache_setlocks_multiget(struct cache_c *dmc, struct bio *bio);
 extern void flashcache_setlocks_multidrop(struct cache_c *dmc, struct bio *bio);
@@ -89,12 +89,12 @@ bool prefetchd_cache_init() {
 
 	cache_metas = 
 		(struct cache_meta *)
-		vmalloc(sizeof(cache_meta) * PREFETCHD_CACHE_PAGE_COUNT);
+		vmalloc(sizeof(struct cache_meta) * PREFETCHD_CACHE_PAGE_COUNT);
 	if (cache_metas == NULL)
-		goto free_metas;
+		goto free_content;
 
 	for (i = 0; i < PREFETCHD_CACHE_PAGE_COUNT; i++) {
-		cache_metas[i]->status = empty;
+		cache_metas[i].status = empty;
 	}
 
 	return true;
