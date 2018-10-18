@@ -396,8 +396,11 @@ static void io_callback(unsigned long error, void *context) {
 	spin_lock_irqsave(&cache_global_lock, flags);
 
 	cache_meta_map_foreach(*map, meta, i) {
+		DPPRINTK("====aaa");
 		meta->status = active;
+		DPPRINTK("====bbb");
 		up(&(meta->prepare_lock));
+		DPPRINTK("====ccc");
 	}
 
 	push_map_stack(elm);
