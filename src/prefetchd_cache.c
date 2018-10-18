@@ -98,7 +98,7 @@ struct cache_meta_map_stack_elm {
 
 	struct cache_meta_map_stack *stack;
 	struct cache_meta *meta_arr;
-	pthread_mutex_t *global_lock;
+	spinlock_t *global_lock;
 };
 
 struct cache_meta_map_stack {
