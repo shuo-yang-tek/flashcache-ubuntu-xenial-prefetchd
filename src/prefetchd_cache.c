@@ -361,7 +361,7 @@ mem_miss:
 					&lookup_index,
 					sector_num,
 					&map);
-			spin_unlock_irqrestore(&cache_global_lock, flags); / unlock
+			spin_unlock_irqrestore(&cache_global_lock, flags); // unlock
 			DPPRINTK("prefetch on ssd. (%llu+%u)",
 					sector_num,
 					size >> 9);
@@ -389,7 +389,7 @@ mem_miss:
 		cache_meta_map_foreach(map, meta, i) {
 			if (meta->status == prepare || 
 					(meta->status == active &&
-					 atomic_read(meta->hold_count) > 0)) {
+					 atomic_read(&(meta->hold_count)) > 0)) {
 				spin_unlock_irqrestore(&cache_global_lock, flags); // unlock
 				DPPRINTK("not enough room to prefetch. (%llu+%u)",
 						sector_num,
@@ -406,6 +406,7 @@ mem_miss:
 		break;
 	default:
 		// stride case
+		sector_num = 0;
 	}
 
 	spin_unlock_irqrestore(&cache_global_lock, flags); // unlock
