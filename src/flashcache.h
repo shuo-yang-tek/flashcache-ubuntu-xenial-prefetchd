@@ -793,3 +793,7 @@ void flashcache_kcopy_destroy(struct cache_c *dmc);
 #endif /* __KERNEL__ */
 
 #endif
+
+int ex_flashcache_lookup(struct cache_c *dmc, struct bio *bio, int *index);
+void ex_flashcache_setlocks_multiget(struct cache_c *dmc, struct bio *bio);
+void ex_flashcache_setlocks_multidrop(struct cache_c *dmc, struct bio *bio);

@@ -59,10 +59,6 @@
 #define is_meta_match(meta, sector_num) \
 	((meta)->status != empty && (meta)->sector_num == (sector_num))
 
-extern void flashcache_setlocks_multiget(struct cache_c *dmc, struct bio *bio);
-extern void flashcache_setlocks_multidrop(struct cache_c *dmc, struct bio *bio);
-extern int flashcache_lookup(struct cache_c *dmc, struct bio *bio, int *index);
-
 DEFINE_SPINLOCK(cache_global_lock);
 
 enum cache_status {
@@ -284,7 +280,7 @@ static void alloc_prefetch(
 		struct cache_meta_map *map
 		) {
 
-	flashcache_setlocks_multidrop(dmc, tmp_bio);
+	ex_flashcache_setlocks_multidrop(dmc, tmp_bio);
 	DPPRINTK("--get (%llu+%u) on %s.",
 			sector_num,
 			map->count << (PAGE_SIZE - 9),
@@ -359,8 +355,8 @@ mem_miss:
 	// check ssd content
 	tmp_bio.bi_iter.bi_sector = sector_num;
 	tmp_bio.bi_iter.bi_size = size;
-	flashcache_setlocks_multiget(dmc, &tmp_bio);
-	lookup_res = flashcache_lookup(dmc, &tmp_bio, &lookup_index);
+	ex_flashcache_setlocks_multiget(dmc, &tmp_bio);
+	lookup_res = ex_flashcache_lookup(dmc, &tmp_bio, &lookup_index);
 	if (lookup_res > 0) {
 		cacheblk = &dmc->cache[lookup_index];
 		if ((cacheblk->cache_state & VALID) && 
@@ -380,7 +376,7 @@ mem_miss:
 	}
 
 	// prefetch on hdd
-	flashcache_setlocks_multidrop(dmc, &tmp_bio);
+	ex_flashcache_setlocks_multidrop(dmc, &tmp_bio);
 
 	switch (info->status) {
 	case sequential_forward:

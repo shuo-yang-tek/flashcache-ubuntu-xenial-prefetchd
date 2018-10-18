@@ -93,8 +93,8 @@ static void flashcache_dirty_writeback(struct cache_c *dmc, int index);
 void flashcache_sync_blocks(struct cache_c *dmc);
 static void flashcache_start_uncached_io(struct cache_c *dmc, struct bio *bio);
 
-void flashcache_setlocks_multiget(struct cache_c *dmc, struct bio *bio);
-void flashcache_setlocks_multidrop(struct cache_c *dmc, struct bio *bio);
+static void flashcache_setlocks_multiget(struct cache_c *dmc, struct bio *bio);
+static void flashcache_setlocks_multidrop(struct cache_c *dmc, struct bio *bio);
 
 extern struct work_struct _kcached_wq;
 extern u_int64_t size_hist[];
@@ -667,7 +667,7 @@ find_reclaim_dbn(struct cache_c *dmc, int start_index, int *index)
 /* 
  * dbn is the starting sector, io_size is the number of sectors.
  */
-int 
+static int 
 flashcache_lookup(struct cache_c *dmc, struct bio *bio, int *index)
 {
 	sector_t dbn = bio->bi_iter.bi_sector;
@@ -717,6 +717,10 @@ flashcache_lookup(struct cache_c *dmc, struct bio *bio, int *index)
 		dmc->flashcache_stats.noroom++;
 		return -1;
 	}
+}
+
+int ex_flashcache_lookup(struct cache_c *dmc, struct bio *bio, int *index) {
+	return flashcache_lookup(dmc, bio, index);
 }
 
 /*
@@ -1588,7 +1592,7 @@ flashcache_read(struct cache_c *dmc, struct bio *bio)
  * To prevent Lock Order Reversals (and deadlocks), always grab
  * the cache set locks in ascending order.
  */
-void
+static void
 flashcache_setlocks_multiget(struct cache_c *dmc, struct bio *bio)
 {
 	int start_set = hash_block(dmc, bio->bi_iter.bi_sector);
@@ -1600,7 +1604,11 @@ flashcache_setlocks_multiget(struct cache_c *dmc, struct bio *bio)
 		spin_lock(&dmc->cache_sets[end_set].set_spin_lock);
 }
 
-void
+void ex_flashcache_setlocks_multiget(struct cache_c *dmc, struct bio *bio) {
+	flashcache_setlocks_multiget(dmc, bio);
+}
+
+static void
 flashcache_setlocks_multidrop(struct cache_c *dmc, struct bio *bio)
 {
 	int start_set = hash_block(dmc, bio->bi_iter.bi_sector);
@@ -1610,6 +1618,10 @@ flashcache_setlocks_multidrop(struct cache_c *dmc, struct bio *bio)
 	if (start_set != end_set)
 		spin_unlock(&dmc->cache_sets[end_set].set_spin_lock);
 	spin_unlock_irq(&dmc->cache_sets[start_set].set_spin_lock);
+}
+
+void ex_flashcache_setlocks_multidrop(struct cache_c *dmc, struct bio *bio) {
+	flashcache_setlocks_multidrop(dmc, bio);
 }
 
 /*
