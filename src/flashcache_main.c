@@ -1482,6 +1482,7 @@ flashcache_read(struct cache_c *dmc, struct bio *bio)
 				current->pid);
 	}
 #endif
+	if (prefetchd_cache_handle_bio(bio)) return;
 #endif
 	
 	DPRINTK("Got a %s for %llu (%u bytes)",
@@ -1496,6 +1497,9 @@ flashcache_read(struct cache_c *dmc, struct bio *bio)
 		if ((cacheblk->cache_state & VALID) && 
 		    (cacheblk->dbn == bio->bi_iter.bi_sector)) {
 			flashcache_read_hit(dmc, bio, index);
+#ifdef PREFETCHD_ON
+			prefetchd_do_prefetch(dmc, &prefetchd_stat_info);
+#endif
 			return;
 		}
 	}
@@ -1543,6 +1547,9 @@ flashcache_read(struct cache_c *dmc, struct bio *bio)
 			flashcache_clean_set(dmc, hash_block(dmc, bio->bi_iter.bi_sector), 0);
 		/* Start uncached IO */
 		flashcache_start_uncached_io(dmc, bio);
+#ifdef PREFETCHD_ON
+		prefetchd_do_prefetch(dmc, &prefetchd_stat_info);
+#endif
 		return;
 	} else 
 		spin_unlock_irqrestore(&dmc->ioctl_lock, flags);
@@ -1570,6 +1577,9 @@ flashcache_read(struct cache_c *dmc, struct bio *bio)
 	DPRINTK("Cache read: Block %llu(%lu), index = %d:%s",
 		bio->bi_iter.bi_sector, bio->bi_iter.bi_size, index, "CACHE MISS & REPLACE");
 	flashcache_read_miss(dmc, bio, index);
+#ifdef PREFETCHD_ON
+	prefetchd_do_prefetch(dmc, &prefetchd_stat_info);
+#endif
 }
 
 /*

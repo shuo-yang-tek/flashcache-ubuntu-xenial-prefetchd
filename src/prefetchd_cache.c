@@ -51,6 +51,14 @@
 #define is_bio_fit_cache(bio) \
 	is_request_fit_cache((bio)->bi_iter.bi_sector, (bio)->bi_iter.bi_size)
 
+#define is_meta_removable(meta) \
+	(!((meta)->status == prepare || \
+		((meta)->status == active && \
+		 atomic_read(&((meta)->hold_count)) > 0)))
+
+#define is_meta_match(meta, sector_num) \
+	((meta)->status != empty && (meta)->sector_num == (sector_num))
+
 extern void flashcache_setlocks_multiget(struct cache_c *dmc, struct bio *bio);
 extern void flashcache_setlocks_multidrop(struct cache_c *dmc, struct bio *bio);
 extern int flashcache_lookup(struct cache_c *dmc, struct bio *bio, int *index);
@@ -190,8 +198,6 @@ get_prefetch_cache_count(
 		struct cache_c *dmc,
 		struct prefetchd_stat_info *info) {
 	u64 ret;
-	u64 ret_by_cre = (u64)(info->last_size >> PAGE_SHIFT) *
-		(u64)info->credibility;
 	u64 last_page_count = info->last_size >> PAGE_SHIFT;
 
 	switch (info->status) {
@@ -277,6 +283,12 @@ static void alloc_prefetch(
 		u64 sector_num,
 		struct cache_meta_map *map
 		) {
+
+	flashcache_setlocks_multidrop(dmc, tmp_bio);
+	DPPRINTK("--get (%llu+%u) on %s.",
+			sector_num,
+			map->count << (PAGE_SIZE - 9),
+			index == NULL ? "HDD" : "SSD");
 }
 
 void prefetchd_do_prefetch(
@@ -288,7 +300,7 @@ void prefetchd_do_prefetch(
 	struct bio tmp_bio;
 	struct cacheblock *cacheblk;
 	int prefetch_count;
-	int i;
+	int i, j;
 	int lookup_index;
 	int lookup_res;
 	long flags;
@@ -321,7 +333,7 @@ void prefetchd_do_prefetch(
 			&map);
 	spin_lock_irqsave(&cache_global_lock, flags); // lock
 	cache_meta_map_foreach(map, meta, i) {
-		if (meta->status == empty || meta->sector_num != sector_num)
+		if (!is_meta_match(meta, sector_num))
 			goto mem_miss;
 	}
 	// mem cache hit
@@ -334,9 +346,7 @@ void prefetchd_do_prefetch(
 mem_miss:
 	// check cache_metas available
 	cache_meta_map_foreach(map, meta, i) {
-		if (meta->status == prepare ||
-				(meta->status == active &&
-				 atomic_read(&(meta->hold_count)) > 0)) {
+		if (!is_meta_removable(meta)) {
 			// can't prefetch
 			spin_unlock_irqrestore(&cache_global_lock, flags); // unlock
 			DPPRINTK("not enough room to prefetch. (%llu+%u)",
@@ -387,9 +397,7 @@ mem_miss:
 				&map);
 		// check metas is available
 		cache_meta_map_foreach(map, meta, i) {
-			if (meta->status == prepare || 
-					(meta->status == active &&
-					 atomic_read(&(meta->hold_count)) > 0)) {
+			if (!is_meta_removable(meta)) {
 				spin_unlock_irqrestore(&cache_global_lock, flags); // unlock
 				DPPRINTK("not enough room to prefetch. (%llu+%u)",
 						sector_num,
@@ -406,7 +414,69 @@ mem_miss:
 		break;
 	default:
 		// stride case
-		sector_num = 0;
+		// check metas available
+		for (j = 1 /* first have checked */; j < prefetch_count; j++) {
+			get_stride_prefetch_step(
+					info,
+					j,
+					&sector_num,
+					&size);
+			get_cache_meta_map(
+					sector_num,
+					size,
+					&map);
+			cache_meta_map_foreach(map, meta, i) {
+				if (!is_meta_removable(meta)) {
+					spin_unlock_irqrestore(&cache_global_lock, flags); // unlock
+					DPPRINTK("not enough room to prefetch. (%llu+%u)",
+							sector_num,
+							size >> 9);
+					return;
+				}
+			}
+		}
+		// make req
+		if (info->status == stride_forward) {
+			for (j = 0; j < prefetch_count; j++) {
+				get_stride_prefetch_step(
+						info,
+						j,
+						&sector_num,
+						&size);
+				get_cache_meta_map(
+						sector_num,
+						size,
+						&map);
+				cache_meta_map_foreach(map, meta, i) {
+					alloc_prefetch(
+							dmc,
+							NULL,
+							NULL,
+							sector_num,
+							&map);
+				}
+			}
+		} else {
+			for (j = prefetch_count - 1; j >= 0; j--) {
+				get_stride_prefetch_step(
+						info,
+						j,
+						&sector_num,
+						&size);
+				get_cache_meta_map(
+						sector_num,
+						size,
+						&map);
+				cache_meta_map_foreach(map, meta, i) {
+					alloc_prefetch(
+							dmc,
+							NULL,
+							NULL,
+							sector_num,
+							&map);
+				}
+			}
+		}
 	}
 
 	spin_unlock_irqrestore(&cache_global_lock, flags); // unlock
