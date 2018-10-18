@@ -393,7 +393,8 @@ static void io_callback(unsigned long error, void *context) {
 	elm = (struct cache_meta_map_stack_elm *)context;
 	map = &(elm->map);
 
-	DPPRINTK("===zzz %l", error);
+	DPPRINTK("===error %l", error);
+	DPPRINTK("===map (%d, %d)", map->index, map->count);
 	spin_lock_irqsave(&cache_global_lock, flags);
 
 	cache_meta_map_foreach(*map, meta, i) {
