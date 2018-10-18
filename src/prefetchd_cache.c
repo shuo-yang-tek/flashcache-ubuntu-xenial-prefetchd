@@ -98,40 +98,40 @@ struct cache_meta_map_stack {
 };
 
 static void *cache_content;
-static struct cache_meta *cache_metas;
+static struct cache_meta cache_metas[PREFETCHD_CACHE_PAGE_COUNT];
 static struct dm_io_client *hdd_client;
 static struct dm_io_client *ssd_client;
-static struct cache_meta_map_stack *map_stack;
+static struct cache_meta_map_stack map_stack;
 
 static void init_map_stack(void) {
 	int i;
 
 	for (i = 0; i < PREFETCHD_CACHE_PAGE_COUNT; i++) {
-		map_stack->pool[i].next =
+		map_stack.pool[i].next =
 			i == PREFETCHD_CACHE_PAGE_COUNT - 1 ?
 			NULL :
-			&(map_stack->pool[i + 1]);
+			&(map_stack.pool[i + 1]);
 	}
 
-	map_stack->head = &(map_stack->pool[0]);
-	map_stack->count = PREFETCHD_CACHE_PAGE_COUNT;
+	map_stack.head = &(map_stack.pool[0]);
+	map_stack.count = PREFETCHD_CACHE_PAGE_COUNT;
 }
 
 static struct cache_meta_map_stack_elm *pop_map_stack(void) {
 	struct cache_meta_map_stack_elm *ret;
 
-	if (map_stack->count <= 0) return NULL;
-	ret = map_stack->head;
-	map_stack->head = map_stack->head->next;
+	if (map_stack.count <= 0) return NULL;
+	ret = map_stack.head;
+	map_stack.head = map_stack.head->next;
 	ret->next = NULL;
-	map_stack->count -= 1;
+	map_stack.count -= 1;
 	return ret;
 }
 
 static void push_map_stack(struct cache_meta_map_stack_elm *elm) {
-	elm->next = map_stack->head;
-	map_stack->head = elm;
-	map_stack->count += 1;
+	elm->next = map_stack.head;
+	map_stack.head = elm;
+	map_stack.count += 1;
 }
 
 bool prefetchd_cache_init() {
@@ -141,24 +141,13 @@ bool prefetchd_cache_init() {
 	if (cache_content == NULL)
 		goto fail_log;
 
-	cache_metas = 
-		(struct cache_meta *)
-		vmalloc(sizeof(struct cache_meta) * PREFETCHD_CACHE_PAGE_COUNT);
-	if (cache_metas == NULL)
-		goto free_content;
-
 	hdd_client = dm_io_client_create();
 	if (IS_ERR(hdd_client))
-		goto free_metas;
+		goto free_content;
 
 	ssd_client = dm_io_client_create();
 	if (IS_ERR(ssd_client))
 		goto free_hdd_client;
-
-	map_stack = (struct cache_meta_map_stack *)
-		vmalloc(sizeof(struct cache_meta_map_stack));
-	if (map_stack == NULL)
-		goto free_ssd_client;
 
 	for (i = 0; i < PREFETCHD_CACHE_PAGE_COUNT; i++) {
 		cache_metas[i].status = empty;
@@ -175,9 +164,6 @@ free_ssd_client:
 free_hdd_client:
 	dm_io_client_destroy(hdd_client);
 
-free_metas:
-	vfree((void *)cache_metas);
-
 free_content:
 	vfree(cache_content);
 
@@ -188,7 +174,6 @@ fail_log:
 
 void prefetchd_cache_exit() {
 	vfree(cache_content);
-	vfree((void *)cache_metas);
 	dm_io_client_destroy(hdd_client);
 	dm_io_client_destroy(ssd_client);
 	vfree((void *)map_stack);
