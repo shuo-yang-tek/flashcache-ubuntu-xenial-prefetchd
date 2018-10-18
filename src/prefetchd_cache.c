@@ -77,7 +77,7 @@ struct cache_meta {
 	// for droping dmc lock
 	struct cache_c *dmc;
 	struct bio tmp_bio;
-	int *index;
+	int index;
 };
 
 struct cache_meta_map {
@@ -399,7 +399,7 @@ static void alloc_prefetch(
 		if (tmp_bio != NULL) {
 			meta->tmp_bio = *tmp_bio;
 		}
-		meta->index = index;
+		meta->index = *index;
 	}
 
 	if (index == NULL) {
