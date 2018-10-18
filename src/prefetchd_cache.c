@@ -393,23 +393,23 @@ static void io_callback(unsigned long error, void *context) {
 	elm = (struct cache_meta_map_stack_elm *)context;
 	map = &(elm->map);
 
-	DPPRINTK("===error %l", error);
-	DPPRINTK("===map (%d, %d)", map->index, map->count);
+	printk("===error %l\n", error);
+	printk("===map (%d, %d)\n", map->index, map->count);
 	spin_lock_irqsave(&cache_global_lock, flags);
 
 	cache_meta_map_foreach(*map, meta, i) {
-		DPPRINTK("====aaa");
+		printk("====aaa\n");
 		meta->status = active;
-		DPPRINTK("====bbb");
+		printk("====bbb\n");
 		up(&(meta->prepare_lock));
-		DPPRINTK("====ccc");
+		printk("====ccc\n");
 	}
 
 	push_map_stack(elm);
 	spin_unlock_irqrestore(&cache_global_lock, flags);
 
 end:
-	DPPRINTK("io_callback: %ld", error);
+	printk("io_callback: %ld\n", error);
 }
 
 static void alloc_prefetch(
