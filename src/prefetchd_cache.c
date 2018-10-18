@@ -235,10 +235,11 @@ bool prefetchd_cache_handle_bio(struct bio *bio) {
 		}
 	}
 
-	data_src = bio->bi_iter.bi_sector << 9;
+	data_src = (void *)cache_content + (bio->bi_iter.bi_sector << 9);
 	bio_for_each_segment(bvec, bio, iter) {
 		data_dest = kmap(bvec.bv_page) + bvec.bv_offset;
 		memcpy(data_dest, data_src, bvec.bv_len);
+		kunmap(bvec.bv_page);
 		data_src += bvec.bv_len;
 	}
 
