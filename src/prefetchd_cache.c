@@ -193,20 +193,12 @@ bool prefetchd_cache_handle_bio(struct bio *bio) {
 	u64 cpy_end;
 	u64 tmp1, tmp2;
 
-	DPPRINTK("----dd (%llu+%u)",
-			bio->bi_iter.bi_sector,
-			bio->bi_iter.bi_size >> 9);
-
 	if (!is_bio_fit_cache(bio)) return false;
 
 	get_cache_meta_map(
 		bio->bi_iter.bi_sector,
 		bio->bi_iter.bi_size,
 		&map);
-
-	DPPRINTK("----ee (%d, %d)",
-			map.index,
-			map.count);
 
 	spin_lock_irqsave(&cache_global_lock, flags);
 
@@ -218,13 +210,9 @@ bool prefetchd_cache_handle_bio(struct bio *bio) {
 			goto cache_miss;
 	}
 
-	DPPRINTK("----ff");
-
 	cache_meta_map_foreach(map, meta, i) {
 		atomic_inc(&(meta->hold_count));
 	}
-
-	DPPRINTK("----gg");
 
 	spin_unlock_irqrestore(&cache_global_lock, flags);
 
@@ -234,8 +222,6 @@ bool prefetchd_cache_handle_bio(struct bio *bio) {
 			up(&(meta->prepare_lock));
 		}
 	}
-
-	DPPRINTK("----hh");
 
 	src_offset = ((u64)(map.index) << PAGE_SHIFT);
 	data_src = cache_content + src_offset;
@@ -260,8 +246,6 @@ bool prefetchd_cache_handle_bio(struct bio *bio) {
 	}
 
 	bio_endio(bio);
-
-	DPPRINTK("----hh");
 
 	cache_meta_map_foreach(map, meta, i) {
 		atomic_dec(&(meta->hold_count));
@@ -383,24 +367,18 @@ static void io_callback(unsigned long error, void *context) {
 
 	elm = (struct cache_meta_map_stack_elm *)context;
 	map = &(elm->map);
-
-	printk("===error %ld\n", error);
-	printk("===map (%d, %d)\n", map->index, map->count);
 	/*spin_lock(&cache_global_lock);*/
 
 	cache_meta_map_foreach(*map, meta, i) {
-		printk("====aaa\n");
-		printk("====idx %d\n", (i + map->index) % PREFETCHD_CACHE_PAGE_COUNT);
 		meta->status = active;
-		printk("====bbb\n");
 		up(&(meta->prepare_lock));
-		printk("====ccc\n");
 	}
 
 	push_map_stack(elm);
 	/*spin_unlock(&cache_global_lock);*/
-
-	printk("io_callback: %ld\n", error);
+	DPPRINTK("io_callback. (%llu+%u)",
+			cache_metas[map->index].sector_num,
+			map->count << (PAGE_SHIFT - 9));
 }
 
 static void alloc_prefetch(
