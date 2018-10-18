@@ -380,16 +380,13 @@ static void io_callback(unsigned long error, void *context) {
 	struct cache_meta_map *map;
 	struct cache_meta *meta;
 	int i;
-	long flags;
-
-	/*if (error) goto end;*/
 
 	elm = (struct cache_meta_map_stack_elm *)context;
 	map = &(elm->map);
 
 	printk("===error %ld\n", error);
 	printk("===map (%d, %d)\n", map->index, map->count);
-	spin_lock_irqsave(&cache_global_lock, flags);
+	spin_lock(&cache_global_lock);
 
 	cache_meta_map_foreach(*map, meta, i) {
 		printk("====aaa\n");
@@ -401,9 +398,8 @@ static void io_callback(unsigned long error, void *context) {
 	}
 
 	push_map_stack(elm);
-	spin_unlock_irqrestore(&cache_global_lock, flags);
+	spin_unlock(&cache_global_lock);
 
-end:
 	printk("io_callback: %ld\n", error);
 }
 
