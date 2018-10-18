@@ -39,7 +39,7 @@
 #define sector_num_to_cache_index(sector_num) \
 	(((sector_num) >> (PAGE_SHIFT - 9)) % PREFETCHD_CACHE_PAGE_COUNT)
 
-#define get_cache_meta(sector_num, size, res) \
+#define get_cache_meta_map(sector_num, size, res) \
 	(res)->index = sector_num_to_cache_index((sector_num)); \
 	(res)->count = size_to_page_count((size));
 
