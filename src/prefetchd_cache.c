@@ -385,7 +385,6 @@ static void alloc_prefetch(
 
 	map_elm = pop_map_stack();
 	if (map_elm == NULL) {
-		spin_unlock_irqrestore($cache_global_lock, flags);
 		DPPRINTK("map_stack leak.");
 		return;
 	}
