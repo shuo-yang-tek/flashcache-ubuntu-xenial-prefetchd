@@ -667,7 +667,7 @@ find_reclaim_dbn(struct cache_c *dmc, int start_index, int *index)
 /* 
  * dbn is the starting sector, io_size is the number of sectors.
  */
-static int 
+int 
 flashcache_lookup(struct cache_c *dmc, struct bio *bio, int *index)
 {
 	sector_t dbn = bio->bi_iter.bi_sector;
@@ -2503,5 +2503,3 @@ EXPORT_SYMBOL(flashcache_md_write_kickoff);
 EXPORT_SYMBOL(flashcache_md_write_done);
 EXPORT_SYMBOL(flashcache_md_write);
 EXPORT_SYMBOL(hash_block);
-
-
