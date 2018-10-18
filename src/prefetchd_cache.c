@@ -204,6 +204,10 @@ bool prefetchd_cache_handle_bio(struct bio *bio) {
 	void *data_dest;
 	struct bio_vec bvec;
 	struct bvec_iter iter;
+	u64 src_offset;
+	u64 src_size = PREFETCHD_CACHE_PAGE_COUNT << PAGE_SHIFT;
+	u64 cpy_end;
+	u64 tmp1, tmp2;
 
 	if (!is_bio_fit_cache(bio)) return false;
 
@@ -217,7 +221,7 @@ bool prefetchd_cache_handle_bio(struct bio *bio) {
 	cache_meta_map_foreach(map, meta, i) {
 		if (meta->status == empty)
 			goto cache_miss;
-		sector_num = bio->bi_iter.bi_sector + (i << (PAGE_SHIFT - 9));
+		sector_num = bio->bi_iter.bi_sector + ((u64)i << (PAGE_SHIFT - 9));
 		if (sector_num != meta->sector_num)
 			goto cache_miss;
 	}
@@ -230,17 +234,31 @@ bool prefetchd_cache_handle_bio(struct bio *bio) {
 
 	cache_meta_map_foreach(map, meta, i) {
 		if (meta->status == prepare) {
-			down_interruptible(&(meta->prepare_lock));
+			down(&(meta->prepare_lock));
 			up(&(meta->prepare_lock));
 		}
 	}
 
-	data_src = (void *)cache_content + (bio->bi_iter.bi_sector << 9);
+	src_offset = ((u64)(map.index) << PAGE_SHIFT);
+	data_src = cache_content + src_offset;
 	bio_for_each_segment(bvec, bio, iter) {
 		data_dest = kmap(bvec.bv_page) + bvec.bv_offset;
-		memcpy(data_dest, data_src, bvec.bv_len);
+		cpy_end = src_offset + (u64)(bvec.bv_len);
+		if (cpy_end <= src_size) {
+			memcpy(data_dest, data_src, bvec.bv_len);
+		} else {
+			tmp1 = cpy_end - src_size;
+			tmp2 = (u64)(bvec.bv_len) - tmp1;
+			if (tmp2 > 0);
+				memcpy(data_dest, data_src, tmp2);
+			if (tmp1 > 0)
+				memcpy(data_dest + tmp2, cache_content, tmp1);
+		}
 		kunmap(bvec.bv_page);
-		data_src += bvec.bv_len;
+		src_offset += bvec.bv_len;
+		if (src_offset >= src_size)
+			src_offset -= src_size;
+		data_src = cache_content + src_offset;
 	}
 
 	bio_endio(bio);
