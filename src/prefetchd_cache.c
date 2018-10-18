@@ -209,6 +209,10 @@ bool prefetchd_cache_handle_bio(struct bio *bio) {
 	u64 cpy_end;
 	u64 tmp1, tmp2;
 
+	DPPRINTK("----dd (%llu+%u)",
+			bio->bi_iter.bi_sector,
+			bio->bi_iter.bi_size >> 9);
+
 	if (!is_bio_fit_cache(bio)) return false;
 
 	get_cache_meta_map(
@@ -257,7 +261,7 @@ bool prefetchd_cache_handle_bio(struct bio *bio) {
 		kunmap(bvec.bv_page);
 		src_offset += bvec.bv_len;
 		if (src_offset >= src_size)
-			src_offset -= src_size;
+			src_offset = src_offset % src_size;
 		data_src = cache_content + src_offset;
 	}
 
