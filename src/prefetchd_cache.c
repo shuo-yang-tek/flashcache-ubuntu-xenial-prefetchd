@@ -280,7 +280,9 @@ static void alloc_prefetch(
 		struct cache_meta_map *map
 		) {
 
-	ex_flashcache_setlocks_multidrop(dmc, tmp_bio);
+	if (index != NULL)
+		ex_flashcache_setlocks_multidrop(dmc, tmp_bio);
+
 	DPPRINTK("--get (%llu+%u) on %s.",
 			sector_num,
 			map->count << (PAGE_SIZE - 9),
