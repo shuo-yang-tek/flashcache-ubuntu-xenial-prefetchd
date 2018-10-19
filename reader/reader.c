@@ -20,6 +20,7 @@ int main(int argc, char *argv[]) {
 	int i;
 	int seek_type = SEEK_SET;
 	off_t seek_offset = 0;
+	off_t tmp_offset;
 	struct timespec start;
 	struct timespec end;
 	double spent;
@@ -60,7 +61,11 @@ int main(int argc, char *argv[]) {
 	clock_gettime(CLOCK_REALTIME, &start);
 
 	for (i = 0; i < COUNT; i++) {
-		if (lseek(fd, seek_offset, seek_type) < 0) {
+		tmp_offset = seek_offset;
+		if (type >= 2) {
+			tmp_offset += SIZE_PER_READ;
+		}
+		if (lseek(fd, tmp_offset, seek_type) < 0) {
 			printf("seek fail\n");
 			break;
 		}
