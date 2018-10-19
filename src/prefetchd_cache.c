@@ -331,11 +331,11 @@ inline static void get_stride_prefetch_step(
 	switch (info->status) {
 	case stride_forward:
 		*sector_num = info->last_sector_num + 
-			info->stride_count * (idx + 1);
+			info->stride_count * ((u64)idx + 1);
 		break;
 	case stride_backward:
 		*sector_num =  info->last_sector_num -
-			info->stride_count * (idx + 1);
+			info->stride_count * ((u64)idx + 1);
 		break;
 	default:
 		*size = 0;
@@ -351,10 +351,10 @@ inline static void get_seq_prefetch_step(
 	*size = (idx + 1) * info->last_size;
 	switch (info->status) {
 	case sequential_forward:
-		*sector_num = info->last_sector_num + (u64)((*size) >> 9);
+		*sector_num = info->last_sector_num + (u64)(info->last_size >> 9);
 		break;
 	case sequential_backward:
-		*sector_num = info->last_sector_num - (u64)((*size) >> 9);
+		*sector_num = info->last_sector_num - (u64)(info->last_size >> 9);
 		break;
 	default:
 		*size = 0;
