@@ -284,44 +284,38 @@ static int
 get_prefetch_cache_count(
 		struct cache_c *dmc,
 		struct prefetchd_stat_info *info) {
-	u64 ret;
+	s64 ret;
 	u64 last_page_count = (u64)info->last_size >> PAGE_SHIFT;
+	u64 last_sector_count = (u64)info->last_size >> 9;
 
 	u64 disk_start = dmc->disk_dev->bdev->bd_part->start_sect;
 	u64 disk_sect_count = dmc->disk_dev->bdev->bd_part->nr_sects;
-	u64 disk_sect_len = disk_start + disk_sect_count - 256; // ????
 
 	switch (info->status) {
 	case sequential_forward:
-		ret = info->last_sector_num + (info->last_size >> 9);
-		ret = disk_sect_len - ret;
-		ret /= (u64)(info->last_size >> 9);
+		ret = (s64)disk_sect_count - ((s64)(info->last_sector_num) - (s64)disk_start + (s64)last_sector_count);
+		ret = ret <= 0 ? 0 : ret / (s64)last_sector_count;
 		break;
 	case sequential_backward:
-		ret = info->last_sector_num - disk_start;
-		ret /= (u64)(info->last_size >> 9);
+		ret = (s64)(info->last_sector_num) - (s64)disk_start;
+		ret = ret <= 0 ? 0 : ret / (s64)last_sector_num;
 		break;
 	case stride_forward:
-		ret = info->last_sector_num + info->stride_count;
-		if (ret >= disk_sect_len) {
-			ret = 0;
-			break;
-		}
-		ret = disk_sect_len - ret;
-		ret = ret / info->stride_count;
+		ret = (s64)disk_sect_count - ((s64)(info->last_sector_num) - (s64)disk_start + (s64)(info->stride_count));
+		ret = ret <= 0 ? 0 : ret / (s64)(info->stride_count);
 		break;
 	case stride_backward:
-		ret = info->last_sector_num - disk_start;
-		ret = ret / info->stride_count;
+		ret = (s64)(info->last_sector_num) - (s64)disk_start;
+		ret = ret <= 0 ? 0 : ret / (s64)(info->stride_count);
 		break;
 	}
 
-	ret = ret > (u64)(info->credibility) ?
-		(u64)(info->credibility) : ret;
+	ret = ret > (s64)(info->credibility) ?
+		(s64)(info->credibility) : ret;
 
-	ret = last_page_count * ret >
+	ret = (s64)last_page_count * ret >
 		PREFETCHD_CACHE_MAX_PAGE_COUNT_PER_CACHE ?
-		PREFETCHD_CACHE_MAX_PAGE_COUNT_PER_CACHE / last_page_count :
+		(s64)(PREFETCHD_CACHE_MAX_PAGE_COUNT_PER_CACHE / last_page_count) :
 		ret;
 
 	return (int)ret;
