@@ -298,7 +298,7 @@ get_prefetch_cache_count(
 		break;
 	case sequential_backward:
 		ret = (s64)(info->last_sector_num) - (s64)disk_start;
-		ret = ret <= 0 ? 0 : ret / (s64)last_sector_num;
+		ret = ret <= 0 ? 0 : ret / (s64)last_sector_count;
 		break;
 	case stride_forward:
 		ret = (s64)disk_sect_count - ((s64)(info->last_sector_num) - (s64)disk_start + (s64)(info->stride_count));
