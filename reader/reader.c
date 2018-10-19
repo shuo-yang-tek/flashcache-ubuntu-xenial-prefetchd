@@ -18,12 +18,10 @@ int main(int argc, char *argv[]) {
 	int fd;
 	char buf[SIZE_PER_READ];
 	int i;
-	int seek_type = SEEK_SET;
-	off_t seek_offset = 0;
-	off_t tmp_offset;
 	struct timespec start;
 	struct timespec end;
 	double spent;
+	off_t seek_offset;
 
 	if (argc < 2) {
 		printf("reader <path> [type]\n");
@@ -42,14 +40,12 @@ int main(int argc, char *argv[]) {
 		str = argv[2];
 		if (strcmp(str, "seq-back") == 0) {
 			type = 1;
-			seek_type = SEEK_END;
 			printf("seq-back\n");
 		} else if (strcmp(str, "str-for") == 0) {
 			type = 2;
 			printf("str-for\n");
 		} else if (strcmp(str, "str-back") == 0) {
 			type = 3;
-			seek_type = SEEK_END;
 			printf("str-back\n");
 		}
 	}
@@ -61,11 +57,22 @@ int main(int argc, char *argv[]) {
 	clock_gettime(CLOCK_REALTIME, &start);
 
 	for (i = 0; i < COUNT; i++) {
-		tmp_offset = seek_offset;
-		if (type >= 2) {
-			tmp_offset += SIZE_PER_READ;
+		switch (type) {
+		case 0:
+			seek_offset = i * SIZE_PER_READ;
+			break;
+		case 1:
+			seek_offset = (COUNT - i - 1) * SIZE_PER_READ;
+			break;
+		case 2:
+			seek_offset = i * STRIDE_LEN;
+			break;
+		case 3:
+			seek_offset = (COUNT - i - 1) * STRIDE_LEN;
+			break;
 		}
-		if (lseek(fd, tmp_offset, seek_type) < 0) {
+
+		if (lseek(fd, seek_offset, SEEK_SET) < 0) {
 			printf("seek fail\n");
 			break;
 		}

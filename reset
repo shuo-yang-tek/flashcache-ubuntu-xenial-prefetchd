@@ -2,5 +2,5 @@
 
 umount /mnt
 dmsetup remove cachedev
-./src/utils/flashcache_destroy /dev/loop0
+./src/utils/flashcache_destroy -f /dev/loop0
 rmmod flashcache
