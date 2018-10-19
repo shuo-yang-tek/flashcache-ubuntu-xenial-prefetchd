@@ -538,27 +538,27 @@ mem_miss:
 	}
 
 	// check ssd content
-	tmp_bio.bi_iter.bi_sector = sector_num;
-	tmp_bio.bi_iter.bi_size = size;
-	ex_flashcache_setlocks_multiget(dmc, &tmp_bio);
-	lookup_res = ex_flashcache_lookup(dmc, &tmp_bio, &lookup_index);
-	if (lookup_res > 0) {
-		cacheblk = &dmc->cache[lookup_index];
-		if ((cacheblk->cache_state & VALID) && 
-		    (cacheblk->dbn == tmp_bio.bi_iter.bi_sector)) {
-			alloc_prefetch(
-					dmc,
-					&tmp_bio,
-					&lookup_index,
-					sector_num,
-					&map);
-			spin_unlock_irqrestore(&cache_global_lock, flags); // unlock
-			return;
-		}
-	}
+	/*tmp_bio.bi_iter.bi_sector = sector_num;*/
+	/*tmp_bio.bi_iter.bi_size = size;*/
+	/*ex_flashcache_setlocks_multiget(dmc, &tmp_bio);*/
+	/*lookup_res = ex_flashcache_lookup(dmc, &tmp_bio, &lookup_index);*/
+	/*if (lookup_res > 0) {*/
+		/*cacheblk = &dmc->cache[lookup_index];*/
+		/*if ((cacheblk->cache_state & VALID) && */
+				/*(cacheblk->dbn == tmp_bio.bi_iter.bi_sector)) {*/
+			/*alloc_prefetch(*/
+					/*dmc,*/
+					/*&tmp_bio,*/
+					/*&lookup_index,*/
+					/*sector_num,*/
+					/*&map);*/
+			/*spin_unlock_irqrestore(&cache_global_lock, flags); // unlock*/
+			/*return;*/
+		/*}*/
+	/*}*/
 
-	// prefetch on hdd
-	ex_flashcache_setlocks_multidrop(dmc, &tmp_bio);
+	/*// prefetch on hdd*/
+	/*ex_flashcache_setlocks_multidrop(dmc, &tmp_bio);*/
 
 	switch (info->status) {
 	case sequential_forward:
