@@ -87,14 +87,14 @@ struct cache_meta_map {
 	int count;
 };
 
-struct cache_meta_map_stack_elm {
+struct callback_context {
 	struct cache_meta_map map;
-	struct cache_meta_map_stack_elm *next;
+	struct callback_context *next;
 };
 
-struct cache_meta_map_stack {
-	struct cache_meta_map_stack_elm pool[PREFETCHD_CACHE_PAGE_COUNT];
-	struct cache_meta_map_stack_elm *head;
+struct callback_context_stack {
+	struct callback_context pool[PREFETCHD_CACHE_PAGE_COUNT];
+	struct callback_context *head;
 	int count;
 };
 
@@ -102,37 +102,37 @@ static void *cache_content;
 static struct cache_meta cache_metas[PREFETCHD_CACHE_PAGE_COUNT];
 static struct dm_io_client *hdd_client;
 static struct dm_io_client *ssd_client;
-static struct cache_meta_map_stack map_stack;
+static struct callback_context_stack callback_contexts;
 
-static void init_map_stack(void) {
+static void init_callback_contexts(void) {
 	int i;
 
 	for (i = 0; i < PREFETCHD_CACHE_PAGE_COUNT; i++) {
-		map_stack.pool[i].next =
+		callback_contexts.pool[i].next =
 			i == PREFETCHD_CACHE_PAGE_COUNT - 1 ?
 			NULL :
-			&(map_stack.pool[i + 1]);
+			&(callback_contexts.pool[i + 1]);
 	}
 
-	map_stack.head = &(map_stack.pool[0]);
-	map_stack.count = PREFETCHD_CACHE_PAGE_COUNT;
+	callback_contexts.head = &(callback_contexts.pool[0]);
+	callback_contexts.count = PREFETCHD_CACHE_PAGE_COUNT;
 }
 
-static struct cache_meta_map_stack_elm *pop_map_stack(void) {
-	struct cache_meta_map_stack_elm *ret;
+static struct callback_context *pop_callback_contexts(void) {
+	struct callback_context *ret;
 
-	if (map_stack.count <= 0) return NULL;
-	ret = map_stack.head;
-	map_stack.head = map_stack.head->next;
+	if (callback_contexts.count <= 0) return NULL;
+	ret = callback_contexts.head;
+	callback_contexts.head = callback_contexts.head->next;
 	ret->next = NULL;
-	map_stack.count -= 1;
+	callback_contexts.count -= 1;
 	return ret;
 }
 
-static void push_map_stack(struct cache_meta_map_stack_elm *elm) {
-	elm->next = map_stack.head;
-	map_stack.head = elm;
-	map_stack.count += 1;
+static void push_callback_contexts(struct callback_context *elm) {
+	elm->next = callback_contexts.head;
+	callback_contexts.head = elm;
+	callback_contexts.count += 1;
 }
 
 bool prefetchd_cache_init() {
@@ -154,7 +154,7 @@ bool prefetchd_cache_init() {
 		cache_metas[i].status = empty;
 	}
 
-	init_map_stack();
+	init_callback_contexts();
 
 	DPPRINTK("prefetchd_cache initialized.");
 	return true;
@@ -376,13 +376,13 @@ inline static void get_seq_prefetch_step(
 }
 
 static void io_callback(unsigned long error, void *context) {
-	struct cache_meta_map_stack_elm *elm;
+	struct callback_context *elm;
 	struct cache_meta_map *map;
 	struct cache_meta *meta;
 	int i;
 	enum cache_status status;
 
-	elm = (struct cache_meta_map_stack_elm *)context;
+	elm = (struct callback_context *)context;
 	map = &(elm->map);
 
 	status = error ? empty : active;
@@ -394,7 +394,7 @@ static void io_callback(unsigned long error, void *context) {
 		up(&(meta->prepare_lock));
 	}
 
-	push_map_stack(elm);
+	push_callback_contexts(elm);
 	spin_unlock(&cache_global_lock_for_interrupt);
 
 	DPPRINTK("io_callback. (%llu+%u)",
@@ -414,7 +414,7 @@ static void alloc_prefetch(
 	struct dm_io_request req;
 	struct dm_io_region region;
 	int dm_io_ret;
-	struct cache_meta_map_stack_elm *map_elm;
+	struct callback_context *map_elm;
 	long flags;
 
 	if (index != NULL) {
@@ -422,9 +422,9 @@ static void alloc_prefetch(
 		return;
 	}
 
-	map_elm = pop_map_stack();
+	map_elm = pop_callback_contexts();
 	if (map_elm == NULL) {
-		DPPRINTK("map_stack leak.");
+		DPPRINTK("callback_contexts leak.");
 		return;
 	}
 	map_elm->map = *map;
