@@ -42,11 +42,19 @@ int main(int argc, char *argv[]) {
 		if (strcmp(str, "seq-back") == 0) {
 			type = 1;
 			seek_type = SEEK_END;
-		} else if (strcmp(str, "str-for") == 0) type = 2;
-		else if (strcmp(str, "str-back") == 0) {
+			printf("seq-back\n");
+		} else if (strcmp(str, "str-for") == 0) {
+			type = 2;
+			printf("str-for\n");
+		} else if (strcmp(str, "str-back") == 0) {
 			type = 3;
 			seek_type = SEEK_END;
+			printf("str-back\n");
 		}
+	}
+
+	if (type == 0) {
+		printf("seq-for\n");
 	}
 
 	clock_gettime(CLOCK_REALTIME, &start);
@@ -66,7 +74,7 @@ int main(int argc, char *argv[]) {
 
 	clock_gettime(CLOCK_REALTIME, &end);
 
-	spent = (double)(end.tv_sec - start.tv_sec) + ((double)end.tv_nsec - (double)end.tv_nsec) / 1.0e9;
+	spent = (double)(end.tv_sec - start.tv_sec) + ((double)end.tv_nsec - (double)start.tv_nsec) / 1.0e9;
 	printf("%lfs\n", spent);
 
 	close(fd);
