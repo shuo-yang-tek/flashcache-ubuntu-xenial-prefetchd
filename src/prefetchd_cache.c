@@ -284,29 +284,35 @@ static int
 get_prefetch_cache_count(
 		struct cache_c *dmc,
 		struct prefetchd_stat_info *info) {
-	s64 ret;
+	u64 ret;
 	u64 last_page_count = (u64)info->last_size >> PAGE_SHIFT;
 	u64 last_sector_count = (u64)info->last_size >> 9;
-
-	u64 disk_start = dmc->disk_dev->bdev->bd_part->start_sect;
 	u64 disk_sect_count = dmc->disk_dev->bdev->bd_part->nr_sects;
+	u64 cache_sect_count = PREFETCHD_CACHE_PAGE_COUNT << (PAGE_SHIFT - 9);
+	u64 tmp;
 
 	switch (info->status) {
 	case sequential_forward:
-		ret = (s64)disk_sect_count - ((s64)(info->last_sector_num) - (s64)disk_start + (s64)last_sector_count);
-		ret = ret <= 0 ? 0 : ret / (s64)last_sector_count;
+		ret = info->last_sector_num + last_sector_count;
+		ret = ret >= disk_sect_count ? 0 : (disk_sect_count - ret) / last_sector_count;
 		break;
 	case sequential_backward:
-		ret = (s64)(info->last_sector_num) - (s64)disk_start;
-		ret = ret <= 0 ? 0 : ret / (s64)last_sector_count;
+		ret = info->last_sector_num / last_sector_count;
 		break;
 	case stride_forward:
-		ret = (s64)disk_sect_count - ((s64)(info->last_sector_num) - (s64)disk_start + (s64)(info->stride_count));
-		ret = ret <= 0 ? 0 : ret / (s64)(info->stride_count);
+		ret = info->last_sector_num + last_sector_count;
+		ret = ret >= disk_sect_count ? 0 : (disk_sect_count - ret) / info->stride_count;
 		break;
 	case stride_backward:
-		ret = (s64)(info->last_sector_num) - (s64)disk_start;
-		ret = ret <= 0 ? 0 : ret / (s64)(info->stride_count);
+		ret = info->last_sector_num / info->stride_count;
+		break;
+	}
+
+	switch (info->status) {
+	case stride_forward:
+	case stride_backward:
+		tmp = cache_sect_count / info->stride_count;
+		ret = ret > tmp ? tmp : ret;
 		break;
 	}
 
