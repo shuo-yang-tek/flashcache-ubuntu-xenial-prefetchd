@@ -60,6 +60,7 @@
 	((meta)->status != empty && (meta)->sector_num == (sector_num))
 
 DEFINE_SPINLOCK(cache_global_lock);
+DEFINE_SPINLOCK(cache_global_lock_for_interrupt);
 
 enum cache_status {
 	empty = 1,
@@ -192,6 +193,7 @@ bool prefetchd_cache_handle_bio(struct bio *bio) {
 	u64 src_size = PREFETCHD_CACHE_PAGE_COUNT << PAGE_SHIFT;
 	u64 cpy_end;
 	u64 tmp1, tmp2;
+	bool need_revert = false;
 
 	if (!is_bio_fit_cache(bio)) return false;
 
@@ -220,7 +222,18 @@ bool prefetchd_cache_handle_bio(struct bio *bio) {
 		if (meta->status == prepare) {
 			down(&(meta->prepare_lock));
 			up(&(meta->prepare_lock));
+			if (meta->status != active) {
+				need_revert = true;
+				break;
+			}
 		}
+	}
+
+	if (need_revert) {
+		cache_meta_map_foreach(map, meta, i) {
+			atomic_dec(&(meta->hold_count));
+		}
+		goto cache_miss_no_unlock;
 	}
 
 	src_offset = ((u64)(map.index) << PAGE_SHIFT);
@@ -260,7 +273,8 @@ bool prefetchd_cache_handle_bio(struct bio *bio) {
 
 cache_miss:
 	spin_unlock_irqrestore(&cache_global_lock, flags);
-	DPPRINTK("%c[1;31mcache miss: %llu+%u",
+cache_miss_no_unlock:
+	DPPRINTK("%c[1;30mcache miss: %llu+%u",
 		27,
 		bio->bi_iter.bi_sector,
 		bio->bi_iter.bi_size >> 9);
@@ -366,18 +380,23 @@ static void io_callback(unsigned long error, void *context) {
 	struct cache_meta_map *map;
 	struct cache_meta *meta;
 	int i;
+	enum cache_status status;
 
 	elm = (struct cache_meta_map_stack_elm *)context;
 	map = &(elm->map);
-	/*spin_lock(&cache_global_lock);*/
+
+	status = error ? empty : active;
+
+	spin_lock(&cache_global_lock_for_interrupt);
 
 	cache_meta_map_foreach(*map, meta, i) {
-		meta->status = active;
+		meta->status = status;
 		up(&(meta->prepare_lock));
 	}
 
 	push_map_stack(elm);
-	/*spin_unlock(&cache_global_lock);*/
+	spin_unlock(&cache_global_lock_for_interrupt);
+
 	DPPRINTK("io_callback. (%llu+%u)",
 			cache_metas[map->index].sector_num,
 			map->count << (PAGE_SHIFT - 9));
