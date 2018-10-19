@@ -274,7 +274,7 @@ bool prefetchd_cache_handle_bio(struct bio *bio) {
 cache_miss:
 	spin_unlock_irqrestore(&cache_global_lock, flags);
 cache_miss_no_unlock:
-	DPPRINTK("%c[1;30mcache miss: %llu+%u",
+	DPPRINTK("%c[1;37mcache miss: %llu+%u",
 		27,
 		bio->bi_iter.bi_sector,
 		bio->bi_iter.bi_size >> 9);
@@ -291,13 +291,7 @@ get_prefetch_cache_count(
 
 	u64 disk_start = dmc->disk_dev->bdev->bd_part->start_sect;
 	u64 disk_sect_count = dmc->disk_dev->bdev->bd_part->nr_sects;
-	unsigned disk_block_size = dmc->disk_dev->bdev->bd_block_size;
-	u64 fact_tmp = disk_block_size >> 9;
-	u64 disk_sect_len;
-
-	disk_start /= fact_tmp;
-	disk_sect_count /= fact_tmp;
-	disk_sect_len = disk_start + disk_sect_count - 256; // ????
+	u64 disk_sect_len = disk_start + disk_sect_count - 256; // ????
 
 	switch (info->status) {
 	case sequential_forward:
