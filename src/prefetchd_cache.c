@@ -410,10 +410,10 @@ static void alloc_prefetch(
 	struct callback_context *map_elm;
 	long flags;
 
-	if (index != NULL) {
-		ex_flashcache_setlocks_multidrop(dmc, tmp_bio);
-		return;
-	}
+	/*if (index != NULL) {*/
+		/*ex_flashcache_setlocks_multidrop(dmc, tmp_bio);*/
+		/*return;*/
+	/*}*/
 
 	map_elm = pop_callback_contexts();
 	if (map_elm == NULL) {
