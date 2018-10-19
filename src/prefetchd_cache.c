@@ -354,7 +354,7 @@ inline static void get_seq_prefetch_step(
 		*sector_num = info->last_sector_num + (u64)(info->last_size >> 9);
 		break;
 	case sequential_backward:
-		*sector_num = info->last_sector_num - (u64)(info->last_size >> 9);
+		*sector_num = info->last_sector_num - (u64)((*size) >> 9);
 		break;
 	default:
 		*size = 0;
