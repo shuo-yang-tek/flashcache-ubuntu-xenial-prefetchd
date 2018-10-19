@@ -383,7 +383,8 @@ static void io_callback(unsigned long error, void *context) {
 	push_callback_contexts(elm);
 	spin_unlock(&cache_global_lock_for_interrupt);
 
-	DPPRINTK("io_callback. (%llu+%u)",
+	DPPRINTK("%sio_callback. (%llu+%u)",
+			error ? "\033[0;32;31m" : "",
 			cache_metas[map->index].sector_num,
 			map->count << (PAGE_SHIFT - 9));
 }
