@@ -1,5 +1,5 @@
 #!/bin/bash
 
 insmod ./src/flashcache.ko
-./src/utils/flashcache_create -p ardound -b 4k cachedev /dev/loop0 /dev/sdb1
+./src/utils/flashcache_create -p around -b 4k cachedev /dev/loop0 /dev/sdb1
 mount /dev/mapper/cachedev /mnt
