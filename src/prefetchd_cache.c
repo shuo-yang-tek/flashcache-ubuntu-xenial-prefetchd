@@ -99,40 +99,40 @@ struct callback_context_stack {
 };
 
 static void *cache_content;
-static struct cache_meta cache_metas[PREFETCHD_CACHE_PAGE_COUNT];
+static struct cache_meta *cache_metas;
 static struct dm_io_client *hdd_client;
 static struct dm_io_client *ssd_client;
-static struct callback_context_stack callback_contexts;
+static struct callback_context_stack *callback_contexts;
 
 static void init_callback_contexts(void) {
 	int i;
 
 	for (i = 0; i < PREFETCHD_CACHE_PAGE_COUNT; i++) {
-		callback_contexts.pool[i].next =
+		callback_contexts->pool[i].next =
 			i == PREFETCHD_CACHE_PAGE_COUNT - 1 ?
 			NULL :
-			&(callback_contexts.pool[i + 1]);
+			&(callback_contexts->pool[i + 1]);
 	}
 
-	callback_contexts.head = &(callback_contexts.pool[0]);
-	callback_contexts.count = PREFETCHD_CACHE_PAGE_COUNT;
+	callback_contexts->head = &(callback_contexts.pool[0]);
+	callback_contexts->count = PREFETCHD_CACHE_PAGE_COUNT;
 }
 
 static struct callback_context *pop_callback_contexts(void) {
 	struct callback_context *ret;
 
-	if (callback_contexts.count <= 0) return NULL;
-	ret = callback_contexts.head;
-	callback_contexts.head = callback_contexts.head->next;
+	if (callback_contexts->count <= 0) return NULL;
+	ret = callback_contexts->head;
+	callback_contexts->head = callback_contexts->head->next;
 	ret->next = NULL;
-	callback_contexts.count -= 1;
+	callback_contexts->count -= 1;
 	return ret;
 }
 
 static void push_callback_contexts(struct callback_context *elm) {
-	elm->next = callback_contexts.head;
-	callback_contexts.head = elm;
-	callback_contexts.count += 1;
+	elm->next = callback_contexts->head;
+	callback_contexts->head = elm;
+	callback_contexts->count += 1;
 }
 
 bool prefetchd_cache_init() {
@@ -150,6 +150,14 @@ bool prefetchd_cache_init() {
 	if (IS_ERR(ssd_client))
 		goto free_hdd_client;
 
+	cache_metas = vmalloc(sizeof(struct cache_meta) * PREFETCHD_CACHE_PAGE_COUNT);
+	if (cache_metas == NULL)
+		goto free_ssd_client;
+
+	callback_contexts = vmalloc(sizeof(struct callback_context_stack));
+	if (callback_contexts == NULL)
+		goto free_metas;
+
 	for (i = 0; i < PREFETCHD_CACHE_PAGE_COUNT; i++) {
 		cache_metas[i].status = empty;
 	}
@@ -158,6 +166,9 @@ bool prefetchd_cache_init() {
 
 	DPPRINTK("prefetchd_cache initialized.");
 	return true;
+
+free_metas:
+	vfree(cache_metas);
 
 free_ssd_client:
 	dm_io_client_destroy(ssd_client);
@@ -177,6 +188,8 @@ void prefetchd_cache_exit() {
 	vfree(cache_content);
 	dm_io_client_destroy(hdd_client);
 	dm_io_client_destroy(ssd_client);
+	vfree(cache_metas);
+	vfree(callback_contexts);
 }
 
 bool prefetchd_cache_handle_bio(struct bio *bio) {
