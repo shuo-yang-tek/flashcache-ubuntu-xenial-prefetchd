@@ -470,12 +470,12 @@ static void alloc_prefetch(
 		req[i].bi_op = READ;
 		req[i].bi_op_flags = 0;
 		req[i].notify.fn = (io_notify_fn)io_callback;
-		req[i].notify.context = (void *)map_elm[i];
-		req[i].client = index == NULL ? hdd_client : ssd_client;
+		req[i].notify.context = (void *)(map_elm[i]);
+		req[i].client = !from_ssd ? hdd_client : ssd_client;
 		req[i].mem.type = DM_IO_VMA;
 		req[i].mem.offset = 0;
 		req[i].mem.ptr.vma = (void *)cache_content +
-			(((u64)map_elm[i]->map.index) << PAGE_SHIFT);
+			(((u64)(map_elm[i]->map.index)) << PAGE_SHIFT);
 	}
 
 	if (!from_ssd) {
@@ -495,8 +495,8 @@ static void alloc_prefetch(
 			cache_meta_map_foreach(map_elm[i]->map, meta, j) {
 				meta->status = empty;
 			}
+			DPPRINTK("\033[0;32;31mdm_io return: %d", dm_io_ret);
 		}
-		DPPRINTK("\033[0;32;31mdm_io return: %d", dm_io_ret);
 	}
 
 	DPPRINTK("prefetch (%llu+%d) on %s: %s.",
