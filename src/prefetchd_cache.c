@@ -475,7 +475,7 @@ static void alloc_prefetch(
 		req[i].mem.type = DM_IO_VMA;
 		req[i].mem.offset = 0;
 		req[i].mem.ptr.vma = (void *)cache_content +
-			((u64)map_elm[i]->map.index) << PAGE_SHIFT;
+			(((u64)map_elm[i]->map.index) << PAGE_SHIFT);
 	}
 
 	if (!from_ssd) {
