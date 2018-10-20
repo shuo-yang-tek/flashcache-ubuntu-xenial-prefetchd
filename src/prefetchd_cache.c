@@ -458,11 +458,9 @@ static void alloc_prefetch(
 		if (tmp_bio != NULL) {
 			meta->tmp_bio = *tmp_bio;
 		}
-		if (index != NULL) {
+		meta->from_ssd = from_ssd;
+		if (from_ssd) {
 			meta->index = *index;
-			meta->from_ssd = true;
-		} else {
-			meta->from_ssd = false;
 		}
 	}
 
@@ -497,13 +495,12 @@ static void alloc_prefetch(
 			}
 			DPPRINTK("\033[0;32;31mdm_io return: %d", dm_io_ret);
 		}
+		DPPRINTK("prefetch (%llu+%d) on %s: %s.",
+				map_elm[i]->map.index << (PAGE_SHIFT - 9),
+				(map_elm[i]->map.count) << (PAGE_SHIFT - 9),
+				!from_ssd ? "HDD" : "SSD",
+				dm_io_ret ? "Failed" : "Sent");
 	}
-
-	DPPRINTK("prefetch (%llu+%d) on %s: %s.",
-			sector_num,
-			(map->count) << (PAGE_SHIFT - 9),
-			!from_ssd ? "HDD" : "SSD",
-			dm_io_ret ? "Failed" : "Sent");
 }
 
 void prefetchd_do_prefetch(
