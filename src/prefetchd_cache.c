@@ -410,8 +410,8 @@ before_read_hdd(struct cache_c *dmc, struct bio *bio) {
 		 */
 		flashcache_invalid_insert(dmc, index);
 	ex_flashcache_setlocks_multidrop(dmc, bio);
-	if (res == -1)
-		flashcache_clean_set(dmc, hash_block(dmc, bio->bi_iter.bi_sector), 0);
+	/*if (res == -1)*/
+		/*flashcache_clean_set(dmc, hash_block(dmc, bio->bi_iter.bi_sector), 0);*/
 }
 
 static void alloc_prefetch(
