@@ -233,7 +233,7 @@ bool prefetchd_cache_handle_bio(struct bio *bio) {
 
 	cache_meta_map_foreach(map, meta, i) {
 		if (meta->status == prepare) {
-			down(&(meta->prepare_lock));
+			down_interruptible(&(meta->prepare_lock));
 			up(&(meta->prepare_lock));
 			if (meta->status != active) {
 				need_revert = true;
