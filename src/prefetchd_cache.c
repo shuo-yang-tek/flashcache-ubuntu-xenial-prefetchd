@@ -114,7 +114,7 @@ static void init_callback_contexts(void) {
 			&(callback_contexts->pool[i + 1]);
 	}
 
-	callback_contexts->head = &(callback_contexts.pool[0]);
+	callback_contexts->head = &(callback_contexts->pool[0]);
 	callback_contexts->count = PREFETCHD_CACHE_PAGE_COUNT;
 }
 
