@@ -446,7 +446,7 @@ static void alloc_prefetch(
 	if (req_count > 1) {
 		map_elm[1]->map.count = map->index + map->count - PREFETCHD_CACHE_PAGE_COUNT;
 		map_elm[1]->map.index = 0;
-		map_elm[0]->map.count = map->count - map_elm[0]->map.count;
+		map_elm[0]->map.count = map->count - map_elm[1]->map.count;
 	}
 
 	cache_meta_map_foreach(*map, meta, i) {
