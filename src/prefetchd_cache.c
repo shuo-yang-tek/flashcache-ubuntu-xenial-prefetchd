@@ -395,6 +395,25 @@ static void io_callback(unsigned long error, void *context) {
 			map->count << (PAGE_SHIFT - 9));
 }
 
+static void
+before_read_hdd(struct cache_c *dmc, struct bio *bio) {
+	int res, index;
+
+	ex_flashcache_setlocks_multiget(dmc, bio);
+	res = ex_flashcache_lookup(dmc, bio, &index);
+	ex_flashcache_inval_blocks(dmc, bio);
+	if ((res > 0) && 
+			(dmc->cache[index].cache_state == INVALID))
+		/* 
+		 * If happened to pick up an INVALID block, put it back on the 
+		 * per cache-set invalid list
+		 */
+		flashcache_invalid_insert(dmc, index);
+	flashcache_setlocks_multidrop(dmc, bio);
+	if (res == -1)
+		flashcache_clean_set(dmc, hash_block(dmc, bio->bi_iter.bi_sector), 0);
+}
+
 static void alloc_prefetch(
 		struct cache_c *dmc,
 		struct bio *tmp_bio,
@@ -583,6 +602,11 @@ mem_miss:
 				return;
 			}
 		}
+
+		tmp_bio->bi_iter.bi_sector = sector_num;
+		tmp_bio->bi_iter.bi_size = size;
+		before_read_hdd(dmc, &tmp_bio);
+
 		alloc_prefetch(
 				dmc,
 				NULL,
@@ -593,7 +617,7 @@ mem_miss:
 	default:
 		// stride case
 		// check metas available
-		for (j = 1 /* first have checked */; j < prefetch_count; j++) {
+		for (j = 0; j < prefetch_count; j++) {
 			get_stride_prefetch_step(
 					info,
 					j,
@@ -612,6 +636,10 @@ mem_miss:
 					return;
 				}
 			}
+
+			tmp_bio->bi_iter.bi_sector = sector_num;
+			tmp_bio->bi_iter.bi_size = size;
+			before_read_hdd(dmc, &tmp_bio);
 		}
 		// make req
 		if (info->status == stride_forward) {

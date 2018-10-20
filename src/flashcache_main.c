@@ -1801,6 +1801,10 @@ flashcache_inval_block_set_v3(struct cache_c *dmc, int set, struct bio *bio,
 	return 1;
 }
 
+int ex_flashcache_inval_blocks(struct cache_c *dmc, struct bio *bio) {
+	return flashcache_inval_blocks(dmc, bio);
+}
+
 static int
 flashcache_inval_blocks(struct cache_c *dmc, struct bio *bio)
 {	
