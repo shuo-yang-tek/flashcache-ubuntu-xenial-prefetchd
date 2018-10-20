@@ -496,7 +496,7 @@ static void alloc_prefetch(
 			DPPRINTK("\033[0;32;31mdm_io return: %d", dm_io_ret);
 		}
 		DPPRINTK("prefetch (%llu+%d) on %s: %s.",
-				map_elm[i]->map.index << (PAGE_SHIFT - 9),
+				cache_metas[map_elm[i]->map.index].sector_num,
 				(map_elm[i]->map.count) << (PAGE_SHIFT - 9),
 				!from_ssd ? "HDD" : "SSD",
 				dm_io_ret ? "Failed" : "Sent");
