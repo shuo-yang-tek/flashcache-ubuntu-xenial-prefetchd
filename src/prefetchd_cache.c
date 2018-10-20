@@ -415,25 +415,39 @@ static void alloc_prefetch(
 		u64 sector_num,
 		struct cache_meta_map *map
 		) {
-	int i;
+	int i, j;
 	struct cache_meta *meta;
-	struct dm_io_request req;
-	struct dm_io_region region;
+	struct dm_io_request req[2];
+	struct dm_io_region region[2];
 	int dm_io_ret;
-	struct callback_context *map_elm;
+	struct callback_context *map_elm[2];
 	long flags;
+	int req_count = 
+		map->index + map->count > PREFETCHD_CACHE_PAGE_COUNT ?
+		2 : 1;
+	bool from_ssd = index == NULL ? false : true;
 
-	/*if (index != NULL) {*/
+	/*if (from_ssd) {*/
 		/*ex_flashcache_setlocks_multidrop(dmc, tmp_bio);*/
 		/*return;*/
 	/*}*/
 
-	map_elm = pop_callback_contexts();
-	if (map_elm == NULL) {
-		DPPRINTK("callback_contexts leak.");
-		return;
+	for (i = 0; i < req_count; i++) {
+		map_elm[i] = pop_callback_contexts();
+		if (map_elm[i] == NULL) {
+			DPPRINTK("callback_contexts leak.");
+			for (j = 0; j < i; j++)
+				push_callback_contexts(map_elm[j]);
+			return;
+		}
 	}
-	map_elm->map = *map;
+
+	map_elm[0]->map = *map;
+	if (req_count > 1) {
+		map_elm[0]->map.count = map->index + map->count - PREFETCHD_CACHE_PAGE_COUNT;
+		map_elm[1]->map.index = 0;
+		map_elm[1]->map.count = map->count - map_elm[0]->map.count;
+	}
 
 	cache_meta_map_foreach(*map, meta, i) {
 		meta->sector_num = sector_num + ((u64)i << (PAGE_SHIFT - 9));
@@ -452,36 +466,43 @@ static void alloc_prefetch(
 		}
 	}
 
-	if (index == NULL) {
-		// HDD case
-		req.bi_op = READ;
-		req.bi_op_flags = 0;
-		req.notify.fn = (io_notify_fn)io_callback;
-		req.notify.context = (void *)map_elm;
-		req.client = hdd_client;
-		req.mem.type = DM_IO_VMA;
-		req.mem.offset = 0;
-		req.mem.ptr.vma = (void *)cache_content + 
-			((u64)(map->index) << PAGE_SHIFT);
+	for (i = 0; i < req_count; i++) {
+		req[i].bi_op = READ;
+		req[i].bi_op_flags = 0;
+		req[i].notify.fn = (io_notify_fn)io_callback;
+		req[i].notify.context = (void *)map_elm[i];
+		req[i].client = index == NULL ? hdd_client : ssd_client;
+		req[i].mem.type = DM_IO_VMA;
+		req[i].mem.offset = 0;
+		req[i].mem.ptr.vma = (void *)cache_content +
+			((u64)map_elm[i]->map.index) << PAGE_SHIFT;
+	}
 
-		region.bdev = dmc->disk_dev->bdev;
-		region.sector = sector_num;
-		region.count = (u64)(map->count) << (PAGE_SHIFT - 9);
+	if (!from_ssd) {
+		// HDD case
+		for (i = 0; i < req_count; i++) {
+			region[i].bdev = dmc->disk_dev->bdev;
+			region[i].sector = map_elm[i]->map.index << (PAGE_SHIFT - 9);
+			region[i].count = map_elm[i]->map.count << (PAGE_SHIFT - 9);
+		}
 	} else {
 		// SSD case
 	}
 
-	dm_io_ret = dm_io(&req, 1, &region, NULL);
-	if (dm_io_ret) {
-		cache_meta_map_foreach(*map, meta, i) {
-			meta->status = empty;
+	for (i = 0; i < req_count; i++) {
+		dm_io_ret = dm_io(&req[i], 1, &region[i], NULL);
+		if (dm_io_ret) {
+			cache_meta_map_foreach(map_elm[i]->map, meta, j) {
+				meta->status = empty;
+			}
 		}
+		DPPRINTK("\033[0;32;31mdm_io return: %d", dm_io_ret);
 	}
 
 	DPPRINTK("prefetch (%llu+%d) on %s: %s.",
 			sector_num,
 			(map->count) << (PAGE_SHIFT - 9),
-			index == NULL ? "HDD" : "SSD",
+			!from_ssd ? "HDD" : "SSD",
 			dm_io_ret ? "Failed" : "Sent");
 }
 
