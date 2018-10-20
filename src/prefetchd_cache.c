@@ -409,7 +409,7 @@ before_read_hdd(struct cache_c *dmc, struct bio *bio) {
 		 * per cache-set invalid list
 		 */
 		flashcache_invalid_insert(dmc, index);
-	flashcache_setlocks_multidrop(dmc, bio);
+	ex_flashcache_setlocks_multidrop(dmc, bio);
 	if (res == -1)
 		flashcache_clean_set(dmc, hash_block(dmc, bio->bi_iter.bi_sector), 0);
 }
@@ -603,8 +603,8 @@ mem_miss:
 			}
 		}
 
-		tmp_bio->bi_iter.bi_sector = sector_num;
-		tmp_bio->bi_iter.bi_size = size;
+		tmp_bio.bi_iter.bi_sector = sector_num;
+		tmp_bio.bi_iter.bi_size = size;
 		before_read_hdd(dmc, &tmp_bio);
 
 		alloc_prefetch(
@@ -637,8 +637,8 @@ mem_miss:
 				}
 			}
 
-			tmp_bio->bi_iter.bi_sector = sector_num;
-			tmp_bio->bi_iter.bi_size = size;
+			tmp_bio.bi_iter.bi_sector = sector_num;
+			tmp_bio.bi_iter.bi_size = size;
 			before_read_hdd(dmc, &tmp_bio);
 		}
 		// make req
