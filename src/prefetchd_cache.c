@@ -480,7 +480,7 @@ static void alloc_prefetch(
 		// HDD case
 		for (i = 0; i < req_count; i++) {
 			region[i].bdev = dmc->disk_dev->bdev;
-			region[i].sector = map_elm[i]->map.index << (PAGE_SHIFT - 9);
+			region[i].sector = sector_num + (u64)i * ((u64)map_elm[0]->map.count << (PAGE_SHIFT - 9));
 			region[i].count = map_elm[i]->map.count << (PAGE_SHIFT - 9);
 		}
 	} else {
