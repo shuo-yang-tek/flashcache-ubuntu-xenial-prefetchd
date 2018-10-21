@@ -65,10 +65,10 @@ int main(int argc, char *argv[]) {
 			seek_offset = (COUNT - i - 1) * SIZE_PER_READ;
 			break;
 		case 2:
-			seek_offset = i * STRIDE_LEN;
+			seek_offset = i * (SIZE_PER_READ + STRIDE_LEN);
 			break;
 		case 3:
-			seek_offset = (COUNT - i - 1) * STRIDE_LEN;
+			seek_offset = (COUNT - i - 1) * (SIZE_PER_READ + STRIDE_LEN);
 			break;
 		}
 
