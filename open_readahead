@@ -1,0 +1,5 @@
+#!/bin/bash
+
+blockdev --setra 256 /dev/sda
+blockdev --setra 256 /dev/sdb
+blockdev --setra 256 /dev/loop0
