@@ -1,3 +1,4 @@
+*.o.ur-safe
 src/.cache.mk
 src/flashcache_kcopy.o.ur-safe
 src/flashcache_main.o.ur-safe
