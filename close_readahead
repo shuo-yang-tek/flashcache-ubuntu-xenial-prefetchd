@@ -3,3 +3,4 @@
 blockdev --setra 0 /dev/sda
 blockdev --setra 0 /dev/sdb
 blockdev --setra 0 /dev/loop0
+blockdev --setra 0 /dev/mapper/cachedev
