@@ -493,7 +493,7 @@ static void alloc_prefetch(
 		// SSD case
 		for (i = 0; i < req_count; i++) {
 			region[i].bdev = dmc->cache_dev->bdev;
-			region[i].sector = sector_num + (u64)i * ((u64)map_elm[0]->map.count << (PAGE_SHIFT - 9));
+			region[i].sector = dmc->cache[*index].dbn + (u64)i * ((u64)map_elm[0]->map.count << (PAGE_SHIFT - 9));
 			region[i].count = map_elm[i]->map.count << (PAGE_SHIFT - 9);
 		}
 	}
@@ -595,7 +595,7 @@ mem_miss:
 					alloc_prefetch(
 							dmc,
 							&lookup_index,
-							cacheblk->dbn,
+							sector_num,
 							&map);
 					spin_unlock_irqrestore(&cache_global_lock, flags); // unlock
 					return;
