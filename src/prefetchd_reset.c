@@ -37,7 +37,7 @@ int prefetchd_reset_init() {
 
 	file = proc_create(
 			PREFETCHD_RESET_FILENAME,
-			0x0200,
+			0200,
 			NULL,
 			&fops);
 
