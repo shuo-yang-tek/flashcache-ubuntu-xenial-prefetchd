@@ -53,8 +53,7 @@
 
 #define is_meta_removable(meta) \
 	(!((meta)->status == prepare || \
-		((meta)->status == active && \
-		 atomic_read(&((meta)->hold_count)) > 0)))
+		 atomic_read(&((meta)->hold_count)) > 0))
 
 #define is_meta_match(meta, sector_num) \
 	((meta)->status != empty && (meta)->sector_num == (sector_num))
