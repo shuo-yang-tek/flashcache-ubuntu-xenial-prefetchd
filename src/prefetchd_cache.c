@@ -493,7 +493,7 @@ static void alloc_prefetch(
 		// SSD case
 		for (i = 0; i < req_count; i++) {
 			region[i].bdev = dmc->cache_dev->bdev;
-			region[i].sector = dmc->cache[*index].dbn + (u64)i * ((u64)map_elm[0]->map.count << (PAGE_SHIFT - 9));
+			region[i].sector = INDEX_TO_CACHE_ADDR(dmc, *index) + (u64)i * ((u64)map_elm[0]->map.count << (PAGE_SHIFT - 9));
 			region[i].count = map_elm[i]->map.count << (PAGE_SHIFT - 9);
 		}
 	}
