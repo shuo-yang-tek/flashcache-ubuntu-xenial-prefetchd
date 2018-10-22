@@ -164,7 +164,7 @@ bool prefetchd_cache_init() {
 
 	init_callback_contexts();
 
-	DPPRINTK("prefetchd_cache initialized.");
+	MPPRINTK("prefetchd_cache initialized.");
 	return true;
 
 free_metas:

@@ -63,6 +63,7 @@
 #ifdef PREFETCHD_ON
 #include "prefetchd_stat.h"
 #include "prefetchd_cache.h"
+#include "prefetchd_reset.h"
 #endif
 
 struct cache_c *cache_list_head = NULL;
@@ -1905,10 +1906,17 @@ flashcache_init(void)
 
 #ifdef PREFETCHD_ON
 	prefetchd_stats_init();
-	if (!prefetchd_cache_init())
+	if (!prefetchd_cache_init()) {
 		r = -1;
+		goto end;
+	}
+	if (prefetchd_reset_init()) {
+		r = -1;
+		goto end;
+	}
 #endif
 
+end:
 	return r;
 }
 
@@ -1942,6 +1950,7 @@ flashcache_exit(void)
 	kfree(flashcache_control);
 #ifdef PREFETCHD_ON
 	prefetchd_cache_exit();
+	prefetchd_reset_exit();
 #endif
 }
 

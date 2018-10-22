@@ -53,7 +53,7 @@ void prefetchd_stats_init() {
 	stats_tail = NULL;
 	stats_count = 0;
 
-	DPPRINTK("stats initialized");
+	MPPRINTK("stats initialized");
 }
 
 static struct prefetchd_stat *dequeue(void) {
