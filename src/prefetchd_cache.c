@@ -386,7 +386,7 @@ static void io_callback(unsigned long error, void *context) {
 	int i;
 	enum cache_status status;
 	struct cache_set *cache_set;
-	struct cacheblk *cacheblk;
+	struct cacheblock *cacheblk;
 	long flags;
 
 	elm = (struct callback_context *)context;
@@ -402,7 +402,7 @@ static void io_callback(unsigned long error, void *context) {
 
 		if (meta->from_ssd) {
 			cacheblk = &(meta->dmc->cache[meta->index]);
-			cache_set = &(meta->dmc->cache_sets[meta->index / dmc->assoc]);
+			cache_set = &(meta->dmc->cache_sets[meta->index / meta->dmc->assoc]);
 			spin_lock_irqsave(&cache_set->set_spin_lock, flags);
 			cacheblk->cache_state &= ~BLOCK_IO_INPROG;
 			spin_unlock_irqrestore(&cache_set->set_spin_lock, flags);
