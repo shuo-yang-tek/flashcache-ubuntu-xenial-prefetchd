@@ -1,0 +1,3 @@
+#!/bin/bash
+
+echo 1 > /proc/flashcache_prefetchd_reset
