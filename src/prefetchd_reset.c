@@ -14,7 +14,7 @@ proc_show_fn(struct seq_file *m, void *v) {
 
 static int
 proc_open_fn(struct inode *inode, struct file *file) {
-	return single_open(filem proc_show_fn, NULL);
+	return single_open(file, proc_show_fn, NULL);
 }
 
 static ssize_t
@@ -38,6 +38,7 @@ int prefetchd_reset_init() {
 	file = proc_create(
 			PREFETCHD_RESET_FILENAME,
 			0x0200,
+			NULL,
 			&fops);
 
 	if (!file) return -1;
