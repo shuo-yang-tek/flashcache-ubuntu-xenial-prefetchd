@@ -159,6 +159,7 @@ bool prefetchd_cache_init() {
 
 	for (i = 0; i < PREFETCHD_CACHE_PAGE_COUNT; i++) {
 		cache_metas[i].status = empty;
+		atomic_set(&(cache_metas[i].hold_count), 0);
 	}
 
 	init_callback_contexts();
