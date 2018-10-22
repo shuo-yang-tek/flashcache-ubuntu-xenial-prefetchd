@@ -689,3 +689,32 @@ mem_miss:
 	}
 	spin_unlock_irqrestore(&cache_global_lock, flags); // unlock
 }
+
+int prefetchd_cache_reset() {
+	long flags;
+	int i;
+	int ret = 0;
+
+	spin_lock_irqsave(&cache_global_lock, flags);
+
+	if (callback_contexts->count != PREFETCHD_CACHE_PAGE_COUNT) {
+		ret = -1;
+		goto end;
+	}
+
+	for (i = 0; i < PREFETCHD_CACHE_PAGE_COUNT; i++) {
+		if (!is_meta_removable(&cache_metas[i])) {
+			ret = -2;
+			goto end;
+		}
+	}
+
+	for (i = 0; i < PREFETCHD_CACHE_PAGE_COUNT; i++) {
+		cache_metas[i].status = empty;
+		atomic_set(&(cache_metas[i].hold_count), 0);
+	}
+
+end:
+	spin_unlock_irqrestore(&cache_global_lock, flags);
+	return ret;
+}

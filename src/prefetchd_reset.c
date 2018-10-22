@@ -6,6 +6,8 @@
 
 #include "prefetchd_log.h"
 #include "prefetchd_reset.h"
+#include "prefetchd_stat.h"
+#include "prefetchd_cache.h"
 
 static int
 proc_show_fn(struct seq_file *m, void *v) {
@@ -19,7 +21,13 @@ proc_open_fn(struct inode *inode, struct file *file) {
 
 static ssize_t
 proc_write_fn(struct file *file, const char __user *buffer, size_t count, loff_t *f_pos) {
-	MPPRINTK("reset received.");
+	int ret;
+
+	MPPRINTK("\033[1;33mreseting prefetchd...");
+	prefetchd_stat_reset();
+	ret = prefetchd_cache_reset();
+	MPPRINTK("\033[0;32;32mprefetchd reseted.");
+
 	return count;
 }
 

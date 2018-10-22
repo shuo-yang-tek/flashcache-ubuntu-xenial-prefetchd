@@ -259,3 +259,19 @@ void prefetchd_update_stat(int pid, struct bio *bio, struct prefetchd_stat_info 
 	}
 #endif
 }
+
+void prefetchd_stat_reset() {
+	long flags;
+	int i;
+
+	spin_lock_irqsave(&prefetchd_stat_lock, flags);
+
+	for (i = 0; i < PREFETCHD_STAT_COUNT; i++)
+		initialize_stat(&stat_pool[i]);
+
+	stats_head = NULL;
+	stats_tail = NULL;
+	stats_count = 0;
+
+	spin_unlock_irqrestore(&prefetchd_stat_lock, flags);
+}

@@ -13,3 +13,4 @@ void prefetchd_do_prefetch(
 		struct cache_c *dmc,
 		struct prefetchd_stat_info *info
 		);
+int prefetchd_cache_reset(void);
