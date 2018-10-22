@@ -1,5 +1,6 @@
 #define PREFETCHD_CACHE_PAGE_COUNT 16384
 #define PREFETCHD_CACHE_MAX_PAGE_COUNT_PER_CACHE 128
+#define PREFETCHD_MAX_SSD_STEP 3
 
 #include <stdbool.h>
 #include <linux/blk_types.h>

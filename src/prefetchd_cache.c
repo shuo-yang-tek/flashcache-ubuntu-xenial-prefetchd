@@ -76,7 +76,6 @@ struct cache_meta {
 
 	// for droping dmc lock
 	struct cache_c *dmc;
-	struct bio tmp_bio;
 	int index;
 	bool from_ssd;
 };
@@ -410,7 +409,6 @@ static void io_callback(unsigned long error, void *context) {
 
 static void alloc_prefetch(
 		struct cache_c *dmc,
-		struct bio *tmp_bio,
 		int *index,
 		u64 sector_num,
 		struct cache_meta_map *map
@@ -455,9 +453,6 @@ static void alloc_prefetch(
 		sema_init(&(meta->prepare_lock), 0);
 		atomic_set(&(meta->hold_count), 0);
 		meta->dmc = dmc;
-		if (tmp_bio != NULL) {
-			meta->tmp_bio = *tmp_bio;
-		}
 		meta->from_ssd = from_ssd;
 		if (from_ssd) {
 			meta->index = *index;
@@ -485,6 +480,11 @@ static void alloc_prefetch(
 		}
 	} else {
 		// SSD case
+		for (i = 0; i < req_count; i++) {
+			region[i].bdev = dmc->cache_dev->bdev;
+			region[i].sector = sector_num + (u64)i * ((u64)map_elm[0]->map.count << (PAGE_SHIFT - 9));
+			region[i].count = map_elm[i]->map.count << (PAGE_SHIFT - 9);
+		}
 	}
 
 	for (i = 0; i < req_count; i++) {
@@ -569,28 +569,33 @@ mem_miss:
 	}
 
 	// check ssd content
-	/*tmp_bio.bi_iter.bi_sector = sector_num;*/
-	/*tmp_bio.bi_iter.bi_size = size;*/
-	/*ex_flashcache_setlocks_multiget(dmc, &tmp_bio);*/
-	/*lookup_res = ex_flashcache_lookup(dmc, &tmp_bio, &lookup_index);*/
-	/*if (lookup_res > 0) {*/
-		/*cacheblk = &dmc->cache[lookup_index];*/
-		/*if ((cacheblk->cache_state & VALID) && */
-				/*(cacheblk->dbn == tmp_bio.bi_iter.bi_sector)) {*/
-			/*alloc_prefetch(*/
-					/*dmc,*/
-					/*&tmp_bio,*/
-					/*&lookup_index,*/
-					/*sector_num,*/
-					/*&map);*/
-			/*spin_unlock_irqrestore(&cache_global_lock, flags); // unlock*/
-			/*return;*/
-		/*}*/
-	/*}*/
+	if (dmc->block_size == (u64)(size >> 9)) {
+		tmp_bio.bi_iter.bi_sector = sector_num;
+		tmp_bio.bi_iter.bi_size = size;
+		ex_flashcache_setlocks_multiget(dmc, &tmp_bio);
+		lookup_res = ex_flashcache_lookup(dmc, &tmp_bio, &lookup_index);
+		if (lookup_res > 0) {
+			cacheblk = &dmc->cache[lookup_index];
+			if ((cacheblk->cache_state & VALID) && 
+					(cacheblk->dbn == tmp_bio.bi_iter.bi_sector)) {
+				if (!(cacheblk->cache_state & BLOCK_IO_INPROG) && (cacheblk->nr_queued == 0)) {
+					cacheblk->cache_state |= CACHEREADINPROG;
+					ex_flashcache_setlocks_multidrop(dmc, &tmp_bio);
+					alloc_prefetch(
+							dmc,
+							&lookup_index,
+							cacheblk->dbn,
+							&map);
+					spin_unlock_irqrestore(&cache_global_lock, flags); // unlock
+					return;
+				}
+			}
+		}
 
-	/*// prefetch on hdd*/
-	/*ex_flashcache_setlocks_multidrop(dmc, &tmp_bio);*/
+		ex_flashcache_setlocks_multidrop(dmc, &tmp_bio);
+	}
 
+	// prefetch on hdd
 	switch (info->status) {
 	case sequential_forward:
 	case sequential_backward:
@@ -616,7 +621,6 @@ mem_miss:
 		}
 		alloc_prefetch(
 				dmc,
-				NULL,
 				NULL,
 				sector_num,
 				&map);
@@ -660,7 +664,6 @@ mem_miss:
 					alloc_prefetch(
 							dmc,
 							NULL,
-							NULL,
 							sector_num,
 							&map);
 				}
@@ -679,7 +682,6 @@ mem_miss:
 				cache_meta_map_foreach(map, meta, i) {
 					alloc_prefetch(
 							dmc,
-							NULL,
 							NULL,
 							sector_num,
 							&map);
