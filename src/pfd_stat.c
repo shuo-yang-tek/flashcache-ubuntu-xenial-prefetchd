@@ -267,8 +267,8 @@ end:
 			bio->bi_iter.bi_sector);
 	DPPRINTK("\tstride: %ld",
 			result->stride);
-	DPPRINTK("\tseq: %lu / %ld",
-			(result->curr_sect - result->curr_start_sect) >> dmc->block_shift,
+	DPPRINTK("\tseq: %ld / %ld",
+			curr->count,
 			result->curr_len);
 	DPPRINTK("\tstride_count: %ld",
 			result->stride_count);
