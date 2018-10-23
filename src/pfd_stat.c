@@ -179,16 +179,16 @@ void pfd_stat_update(
 	spin_lock(&global_lock);
 
 	elm = pfd_stat_queue_search(&main_queue, dmc, pid);
-	if (elm != NULL)
+	if (elm != NULL) {
 		pfd_stat = &elm->stat;
-	else {
-		pfd_stat_elm_to_head(&main_queue, main_queue.tail);
-		elm = main_queue.head;
+	} else {
+		elm = main_queue->tail;
 		pfd_stat = &elm->stat;
 		reset_pfd_stat(pfd_stat);
 		pfd_stat->pid = pid;
 		pfd_stat->tgt = dmc->tgt;
 	}
+	pfd_stat_elm_to_head(&main_queue, elm);
 
 	curr = pfd_stat->curr_seq_stat;
 	prev = pfd_stat->prev_seq_stat;
