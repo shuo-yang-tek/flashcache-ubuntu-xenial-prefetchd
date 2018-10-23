@@ -258,16 +258,30 @@ end:
 
 	spin_unlock(&global_lock);
 
-	DPPRINTK("-----------------");
-	DPPRINTK("curr_sect: %lu",
-			result->curr_sect);
-	DPPRINTK("curr_start_sect: %lu",
-			result->curr_start_sect);
-	DPPRINTK("curr_len: %ld",
-			result->curr_len);
-	DPPRINTK("stride: %ld",
+	DPPRINTK("pfd_stat updated",
+			pid,
+			bio->bi_iter.bi_sector);
+	DPPRINTK("\tpid: %d",
+			pid);
+	DPPRINTK("\treq: %lu",
+			bio->bi_iter.bi_sector);
+	DPPRINTK("\tstride: %ld",
 			result->stride);
-	DPPRINTK("stride_count: %ld",
+	DPPRINTK("\tseq: %lu / %ld",
+			result->curr_sect - result->curr_start_sect,
+			result->curr_len);
+	DPPRINTK("\tstride_count: %ld",
 			result->stride_count);
-	DPPRINTK("-----------------");
+	/*DPPRINTK("-----------------");*/
+	/*DPPRINTK("curr_sect: %lu",*/
+			/*result->curr_sect);*/
+	/*DPPRINTK("curr_start_sect: %lu",*/
+			/*result->curr_start_sect);*/
+	/*DPPRINTK("curr_len: %ld",*/
+			/*result->curr_len);*/
+	/*DPPRINTK("stride: %ld",*/
+			/*result->stride);*/
+	/*DPPRINTK("stride_count: %ld",*/
+			/*result->stride_count);*/
+	/*DPPRINTK("-----------------");*/
 }
