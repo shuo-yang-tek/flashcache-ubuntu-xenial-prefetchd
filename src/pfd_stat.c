@@ -107,10 +107,10 @@ reset_pfd_stat_queue(struct pfd_stat_queue *target) {
 	for (i = 0; i < PFD_STAT_COUNT; i++) {
 		elm = &target->stat_elms[i];
 		reset_pfd_stat_elm(elm);
-		elm->prev = (i == 0 ?
-				NULL : &target->stat_elms[i - 1]);
-		elm->next = (i == PFD_STAT_COUNT - 1 ?
-				NULL : &target->stat_elms[i + 1]);
+		if (i != 0)
+			elm->prev = &target->stat_elms[i - 1];
+		if (i != PFD_STAT_COUNT - 1)
+			elm->next = &target->stat_elms[i + 1];
 	}
 
 	target->head = &target->stat_elms[0];
@@ -128,6 +128,7 @@ pfd_stat_elm_to_head(
 		elm->prev->next = elm->next;
 	if (q->tail == elm)
 		q->tail = elm->prev;
+	q->head->prev = elm;
 	elm->next = q->head;
 	elm->prev = NULL;
 	q->head = elm;
