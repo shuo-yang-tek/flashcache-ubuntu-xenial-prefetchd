@@ -61,9 +61,7 @@
 #include "flashcache_ioctl.h"
 
 #ifdef PREFETCHD_ON
-#include "prefetchd_stat.h"
-#include "prefetchd_cache.h"
-#include "prefetchd_reset.h"
+#include "pfd_stat.h"
 #endif
 
 struct cache_c *cache_list_head = NULL;
@@ -1905,15 +1903,7 @@ flashcache_init(void)
 	register_reboot_notifier(&flashcache_notifier);
 
 #ifdef PREFETCHD_ON
-	prefetchd_stats_init();
-	if (!prefetchd_cache_init()) {
-		r = -1;
-		goto end;
-	}
-	if (prefetchd_reset_init()) {
-		r = -1;
-		goto end;
-	}
+	pfd_stat_init();
 #endif
 
 end:
@@ -1949,8 +1939,6 @@ flashcache_exit(void)
 	flashcache_module_procfs_release();
 	kfree(flashcache_control);
 #ifdef PREFETCHD_ON
-	prefetchd_cache_exit();
-	prefetchd_reset_exit();
 #endif
 }
 

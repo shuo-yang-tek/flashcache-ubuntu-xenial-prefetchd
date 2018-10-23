@@ -65,10 +65,8 @@
 #endif
 
 #ifdef PREFETCHD_ON
-#include "prefetchd_stat.h"
-#include "prefetchd_cache.h"
+#include "pfd_stat.h"
 #endif
-#include "prefetchd_log.h"
 
 /*
  * TODO List :
@@ -1475,9 +1473,9 @@ flashcache_read(struct cache_c *dmc, struct bio *bio)
 	unsigned long flags;
 
 #ifdef PREFETCHD_ON
-	struct prefetchd_stat_info prefetchd_stat_info;
-	prefetchd_update_stat(current->pid, bio, &prefetchd_stat_info);
-	if (prefetchd_cache_handle_bio(bio)) return;
+	struct pfd_public_stat pfd_public_stat;
+	pfd_public_stat(dmc, bio, pfd_public_stat);
+	/*if (prefetchd_cache_handle_bio(bio)) return;*/
 #endif
 	
 	DPRINTK("Got a %s for %llu (%u bytes)",
@@ -1493,7 +1491,6 @@ flashcache_read(struct cache_c *dmc, struct bio *bio)
 		    (cacheblk->dbn == bio->bi_iter.bi_sector)) {
 			flashcache_read_hit(dmc, bio, index);
 #ifdef PREFETCHD_ON
-			prefetchd_do_prefetch(dmc, &prefetchd_stat_info);
 #endif
 			return;
 		}
@@ -1543,7 +1540,6 @@ flashcache_read(struct cache_c *dmc, struct bio *bio)
 		/* Start uncached IO */
 		flashcache_start_uncached_io(dmc, bio);
 #ifdef PREFETCHD_ON
-		prefetchd_do_prefetch(dmc, &prefetchd_stat_info);
 #endif
 		return;
 	} else 
@@ -1573,7 +1569,6 @@ flashcache_read(struct cache_c *dmc, struct bio *bio)
 		bio->bi_iter.bi_sector, bio->bi_iter.bi_size, index, "CACHE MISS & REPLACE");
 	flashcache_read_miss(dmc, bio, index);
 #ifdef PREFETCHD_ON
-	prefetchd_do_prefetch(dmc, &prefetchd_stat_info);
 #endif
 }
 
