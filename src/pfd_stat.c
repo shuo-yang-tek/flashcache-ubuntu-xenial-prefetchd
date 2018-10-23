@@ -182,7 +182,7 @@ void pfd_stat_update(
 	if (elm != NULL) {
 		pfd_stat = &elm->stat;
 	} else {
-		elm = main_queue->tail;
+		elm = main_queue.tail;
 		pfd_stat = &elm->stat;
 		reset_pfd_stat(pfd_stat);
 		pfd_stat->pid = pid;
