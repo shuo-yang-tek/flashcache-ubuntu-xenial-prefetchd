@@ -268,7 +268,7 @@ end:
 	DPPRINTK("\tstride: %ld",
 			result->stride);
 	DPPRINTK("\tseq: %lu / %ld",
-			result->curr_sect - result->curr_start_sect,
+			(result->curr_sect - result->curr_start_sect) >> dmc->block_shift,
 			result->curr_len);
 	DPPRINTK("\tstride_count: %ld",
 			result->stride_count);
