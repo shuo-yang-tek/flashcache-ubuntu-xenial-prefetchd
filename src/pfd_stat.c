@@ -65,8 +65,8 @@ reset_pfd_stat(struct pfd_stat *target) {
 	target->pid = -1;
 	target->stride = 0;
 	target->stride_count = 0;
-	reset_pfd_seq_stat(target->seq_stats[0]);
-	reset_pfd_seq_stat(target->seq_stats[1]);
+	reset_pfd_seq_stat(&target->seq_stats[0]);
+	reset_pfd_seq_stat(&target->seq_stats[1]);
 	target->curr_seq_stat = &(target->seq_stats[0]);
 	target->prev_seq_stat = &(target->seq_stats[1]);
 }
@@ -82,8 +82,8 @@ swap_pfd_stat_curr_prev(struct pfd_stat *target) {
 
 struct pfd_stat_elm {
 	struct pfd_stat stat;
-	struct pfd_stat *next;
-	struct pfd_stat *prev;
+	struct pfd_stat_elm *next;
+	struct pfd_stat_elm *prev;
 };
 
 inline void
@@ -107,10 +107,10 @@ reset_pfd_stat_queue(struct pfd_stat_queue *target) {
 	for (i = 0; i < PFD_STAT_COUNT; i++) {
 		elm = &target->stat_elms[i];
 		reset_pfd_stat_elm(elm);
-		elm->prev = i == 0 ?
-			NULL : &target->stat_elms[i - 1];
-		elm->next = i == PFD_STAT_COUNT - 1 ?
-			NULL : &target->stat_elms[i + 1];
+		elm->prev = (i == 0 ?
+				NULL : &target->stat_elms[i - 1]);
+		elm->next = (i == PFD_STAT_COUNT - 1 ?
+				NULL : &target->stat_elms[i + 1]);
 	}
 
 	target->head = &target->stat_elms[0];
@@ -199,7 +199,7 @@ void pfd_stat_update(
 		goto end;
 	}
 
-	if (is_bio_fit_seq_stat(curr)) {
+	if (is_bio_fit_seq_stat(dmc, curr, bio)) {
 		curr->count += 1;
 		if (prev->count <= 0 || curr->count <= prev->count)
 			goto end;
