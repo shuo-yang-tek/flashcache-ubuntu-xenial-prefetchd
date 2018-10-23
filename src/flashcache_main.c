@@ -1474,7 +1474,7 @@ flashcache_read(struct cache_c *dmc, struct bio *bio)
 
 #ifdef PREFETCHD_ON
 	struct pfd_public_stat pfd_public_stat;
-	pfd_public_stat(dmc, bio, pfd_public_stat);
+	pfd_stat_update(dmc, bio, pfd_public_stat);
 	/*if (prefetchd_cache_handle_bio(bio)) return;*/
 #endif
 	
