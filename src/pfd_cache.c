@@ -286,6 +286,9 @@ get_dbn_of_step(
 		info->seq_count;
 	long tmp;
 
+	if (max_step < PFD_CACHE_THRESHOLD_STEP)
+		return -1;
+
 	max_step = max_step > PFD_CACHE_MAX_STEP ?
 		PFD_CACHE_MAX_STEP : max_step;
 
@@ -309,12 +312,60 @@ get_dbn_of_step(
 	return result;
 }
 
+static void
+alloc_prefetch(
+		struct pfd_cache_meta *meta,
+		sector_t dbn,
+		int look_index) {
+}
+
+static bool
+do_ssd_request(
+		struct pfd_cache_meta *meta,
+		sector_t dbn) {
+
+	struct bio tmp_bio;
+	int lookup_res;
+	int look_index;
+	struct cache_c *dmc = meta->cache->dmc;
+	struct cacheblock *cacheblk;
+
+	tmp_bio->bi_iter.bi_sector = dbn;
+	tmp_bio->bi_iter.bi_size = 
+		(unsigned int)dmc->block_size >> SECTOR_SHIFT;
+
+	ex_flashcache_setlocks_multiget(dmc, &tmp_bio);
+	lookup_res = ex_flashcache_setlocks_multiget(
+			dmc,
+			&tmp_bio,
+			&look_index);
+	if (lookup_res > 0) {
+		cacheblk = &dmc->cache[lookup_index];
+		if ((cacheblk->cache_state & VALID) && 
+				(cacheblk->dbn == dbn)) {
+			if (!(cacheblk->cache_state & BLOCK_IO_INPROG) && (cacheblk->nr_queued == 0)) {
+				cacheblk->cache_state |= CACHEREADINPROG;
+				ex_flashcache_setlocks_multidrop(dmc, &tmp_bio);
+				alloc_prefetch(meta, dbn, index);
+				return true;
+			}
+		}
+	}
+	ex_flashcache_setlocks_multidrop(dmc, &tmp_bio);
+	return false;
+}
+
 void pfd_cache_prefetch(
 		struct cache_c *dmc,
 		struct pfd_stat_info *info) {
 
 	long flags;
 	struct pfd_cache *cache;
+	long dbn;
+	long step = 1;
+	int meta_idx;
+	struct pfd_cache_meta *meta;
+	int stop_reason = 0;
 
 	spin_lock_irqsave(&(main_cache_set.lock), flags);
 	cache = find_cache_in_cache_set(dmc, &main_cache_set);
@@ -325,6 +376,37 @@ void pfd_cache_prefetch(
 		return;
 	}
 
-	DPPRINTK("-- %ld",
-			get_dbn_of_step(dmc, info, 1));
+	spin_lock_irqsave(&(cache->lock), flags);
+
+	dbn = get_dbn_of_step(dmc, info, step);
+	while (dbn >= 0) {
+		meta_idx = dbn_to_cache_index(cache, dbn);
+		meta = &(cache->metas[meta_idx]);
+
+		if (meta->status != empty && meta->dbn == (sector_t)dbn) {
+			// mem already
+			stop_reason = 1;
+			break;
+		}
+		if (meta->status == prepare ||
+				atomic_read(&(meta->hold_count)) > 0) {
+			// no room
+			stop_reason = 2;
+			break;
+		}
+
+		// check ssd
+		if (do_ssd_request(meta, dbn)) {
+			stop_reason = 3;
+			break;
+		}
+
+		// do hdd
+		alloc_prefetch(meta, dbn, -1);
+		step += 1;
+		dbn = get_dbn_of_step(dmc, info, step);
+	}
+
+	spin_unlock_irqrestore(&(cache->lock), flags);
+	DPPRINTK("prefetch count: %ld", step - 1);
 }
