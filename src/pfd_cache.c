@@ -390,10 +390,6 @@ alloc_prefetch(
 		((unsigned long)dbn_to_cache_index(meta->cache, dbn) <<
 		 (dmc->block_shift + SECTOR_SHIFT));
 
-	DPPRINTK("--- %lu", 
-			(unsigned long)dbn_to_cache_index(meta->cache, dbn) <<
-		 (dmc->block_shift + SECTOR_SHIFT));
-
 	region.bdev = from_ssd ?
 		dmc->cache_dev->bdev : dmc->disk_dev->bdev;
 	region.sector = from_ssd ?
