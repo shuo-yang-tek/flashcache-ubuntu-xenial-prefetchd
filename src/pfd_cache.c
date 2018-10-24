@@ -356,7 +356,7 @@ static void io_callback(unsigned long error, void *context) {
 
 	spin_unlock(&(meta->cache->callback_lock));
 
-	DPPRINTK("%sio_callback. (%lu)%s",
+	DPPRINTK("%sio_callback. (%lu)",
 			error ? "\033[0;32;31m" : "",
 			meta->dbn);
 }
