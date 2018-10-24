@@ -332,7 +332,7 @@ do_ssd_request(
 
 	tmp_bio.bi_iter.bi_sector = dbn;
 	tmp_bio.bi_iter.bi_size = 
-		(unsigned int)dmc->block_size >> SECTOR_SHIFT;
+		(unsigned int)dmc->block_size << SECTOR_SHIFT;
 
 	ex_flashcache_setlocks_multiget(dmc, &tmp_bio);
 	lookup_res = ex_flashcache_lookup(
