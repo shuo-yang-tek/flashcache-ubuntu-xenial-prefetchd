@@ -72,7 +72,7 @@ struct pfd_cache_set {
 
 struct pfd_cache_set main_cache_set;
 
-static struct *pfd_cache
+static struct pfd_cache *
 find_cache_in_cache_set(
 		struct cache_c *dmc,
 		struct pfd_cache_set *cache_set) {
@@ -141,7 +141,7 @@ void pfd_cache_exit() {
 	int i;
 	struct pfd_cache *cache;
 
-	spin_lock_irqsave(&(main_cache_set->lock), flags);
+	spin_lock_irqsave(&(main_cache_set.lock), flags);
 	for (i = 0; i < PFD_CACHE_COUNT_PER_SET; i++) {
 		cache = main_cache_set.caches[i];
 		if (cache != NULL) {
@@ -149,7 +149,7 @@ void pfd_cache_exit() {
 			vfree((void *)cache);
 		}
 	}
-	spin_unlock_irqrestore(&(main_cache_set->lock), flags);
+	spin_unlock_irqrestore(&(main_cache_set.lock), flags);
 }
 
 void pfd_cache_add(struct cache_c *dmc) {
@@ -157,17 +157,17 @@ void pfd_cache_add(struct cache_c *dmc) {
 	int i;
 	long flags;
 
-	spin_lock_irqsave(&(main_cache_set->lock), flags);
+	spin_lock_irqsave(&(main_cache_set.lock), flags);
 
 	cache = find_cache_in_cache_set(dmc, &main_cache_set);
 	if (cache != NULL) {
-		spin_unlock_irqrestore(&(main_cache_set->lock), flags);
+		spin_unlock_irqrestore(&(main_cache_set.lock), flags);
 		MPPRINTK("pfd_cache already exist.");
 		return;
 	}
 
 	if (main_cache_set.count == PFD_CACHE_COUNT_PER_SET) {
-		spin_unlock_irqrestore(&(main_cache_set->lock), flags);
+		spin_unlock_irqrestore(&(main_cache_set.lock), flags);
 		MPPRINTK("\033[0;32;31mNo room to add pfd_cache.");
 		return;
 	}
@@ -179,18 +179,18 @@ void pfd_cache_add(struct cache_c *dmc) {
 			break;
 		}
 	}
-	spin_unlock_irqrestore(&(main_cache_set->lock), flags);
+	spin_unlock_irqrestore(&(main_cache_set.lock), flags);
 
 	if (i < PFD_CACHE_COUNT_PER_SET) {
 		cache = init_pfd_cache(dmc, &main_cache_set, i);
-		spin_lock_irqsave(&(main_cache_set->lock), flags);
+		spin_lock_irqsave(&(main_cache_set.lock), flags);
 		if (cache == NULL) {
 			main_cache_set.status_arr[i] = alloc_empty;
 			main_cache_set.count -= 1;
 		} else {
 			main_cache_set.status_arr[i] = alloc_active;
 		}
-		spin_unlock_irqrestore(&(main_cache_set->lock), flags);
+		spin_unlock_irqrestore(&(main_cache_set.lock), flags);
 	}
 
 	if (cache == NULL) {
