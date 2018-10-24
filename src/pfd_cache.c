@@ -297,7 +297,7 @@ get_dbn_of_step(
 		result += step << dmc->block_shift;
 	else {
 		tmp = info->seq_count + step;
-		result -= (info->seq_count - 1) << dmc->block_shift;
+		result -= info->seq_count << dmc->block_shift;
 		result += (tmp / info->seq_total_count) *
 			info->stride_distance_sect;
 		result += (tmp % info->seq_total_count) << dmc->block_shift;
