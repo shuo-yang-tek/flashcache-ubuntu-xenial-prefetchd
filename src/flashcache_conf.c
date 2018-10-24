@@ -1909,7 +1909,9 @@ flashcache_init(void)
 
 #ifdef PREFETCHD_ON
 	pfd_stat_init();
-	pfd_cache_init();
+	r = pfd_cache_init();
+	if (r != 0)
+		goto end;
 #endif
 
 end:

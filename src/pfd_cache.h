@@ -5,7 +5,7 @@
 
 #include <stdbool.h>
 
-void pfd_cache_init(void);
+int pfd_cache_init(void);
 void pfd_cache_exit(void);
 void pfd_cache_add(struct cache_c *dmc);
 bool pfd_cache_handle_bio(
