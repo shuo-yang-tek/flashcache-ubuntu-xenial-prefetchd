@@ -357,7 +357,7 @@ static void io_callback(unsigned long error, void *context) {
 
 	DPPRINTK("%sio_callback. (%lu)%s",
 			error ? "\033[0;32;31m" : "",
-			cache_metas[map->index].sector_num);
+			meta->dbn);
 }
 
 static void
@@ -370,7 +370,7 @@ alloc_prefetch(
 	struct dm_io_request req;
 	struct dm_io_region region;
 	int dm_io_ret;
-	bool from_ssd = index >= 0;
+	bool from_ssd = lookup_index >= 0;
 
 	meta->dbn = dbn;
 	meta->status = prepare;
@@ -386,7 +386,7 @@ alloc_prefetch(
 	req.mem.type = DM_IO_VMA;
 	req.mem.offset = 0;
 	req.mem.ptr.vma = (void *)meta->cache->data +
-		(unsigned long)dbn_to_cache_index(dbn) <<
+		(unsigned long)dbn_to_cache_index(meta->cache, dbn) <<
 		(dmc->block_shift + SECTOR_SHIFT);
 
 	region.bdev = from_ssd ?
