@@ -125,6 +125,7 @@ init_pfd_cache(
 		meta = &(cache->metas[i]);
 		meta->cache = cache;
 		meta->status = empty;
+		atomic_set(&(meta->hold_count), 0);
 	}
 
 	return cache;
