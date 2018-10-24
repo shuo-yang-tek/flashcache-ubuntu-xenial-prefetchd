@@ -326,19 +326,19 @@ do_ssd_request(
 
 	struct bio tmp_bio;
 	int lookup_res;
-	int look_index;
+	int lookup_index;
 	struct cache_c *dmc = meta->cache->dmc;
 	struct cacheblock *cacheblk;
 
-	tmp_bio->bi_iter.bi_sector = dbn;
-	tmp_bio->bi_iter.bi_size = 
+	tmp_bio.bi_iter.bi_sector = dbn;
+	tmp_bio.bi_iter.bi_size = 
 		(unsigned int)dmc->block_size >> SECTOR_SHIFT;
 
 	ex_flashcache_setlocks_multiget(dmc, &tmp_bio);
-	lookup_res = ex_flashcache_setlocks_multiget(
+	lookup_res = ex_flashcache_lookup(
 			dmc,
 			&tmp_bio,
-			&look_index);
+			&lookup_index);
 	if (lookup_res > 0) {
 		cacheblk = &dmc->cache[lookup_index];
 		if ((cacheblk->cache_state & VALID) && 
@@ -346,7 +346,7 @@ do_ssd_request(
 			if (!(cacheblk->cache_state & BLOCK_IO_INPROG) && (cacheblk->nr_queued == 0)) {
 				cacheblk->cache_state |= CACHEREADINPROG;
 				ex_flashcache_setlocks_multidrop(dmc, &tmp_bio);
-				alloc_prefetch(meta, dbn, index);
+				alloc_prefetch(meta, dbn, lookup_index);
 				return true;
 			}
 		}
