@@ -338,10 +338,11 @@ static void io_callback(unsigned long error, void *context) {
 		(struct pfd_cache_meta *) context;
 	struct cache_set *cache_set;
 	struct cacheblock *cacheblk;
-	struct cache_c *dmc = meta->cache->dmc;
 	long flags;
+	struct pfd_cache *cache = meta->cache;
+	struct cache_c *dmc = cache->dmc;
 
-	spin_lock(&(meta->cache->callback_lock));
+	spin_lock(&(cache->callback_lock));
 	meta->status = error ? empty : valid;
 	up(&(meta->prepare_lock));
 
@@ -385,8 +386,12 @@ alloc_prefetch(
 	req.client = !from_ssd ? hdd_client : ssd_client;
 	req.mem.type = DM_IO_VMA;
 	req.mem.offset = 0;
-	req.mem.ptr.vma = (void *)meta->cache->data +
+	req.mem.ptr.vma = meta->cache->data +
 		((unsigned long)dbn_to_cache_index(meta->cache, dbn) <<
+		 (dmc->block_shift + SECTOR_SHIFT));
+
+	DPPRINTK("--- %lu", 
+			(unsigned long)dbn_to_cache_index(meta->cache, dbn) <<
 		 (dmc->block_shift + SECTOR_SHIFT));
 
 	region.bdev = from_ssd ?
