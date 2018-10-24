@@ -303,7 +303,7 @@ get_dbn_of_step(
 	}
 
 	if (result >= (long)(dmc->disk_dev->bdev->bd_part->nr_sects))
-		return = -1;
+		return -1;
 
 	return result;
 }
