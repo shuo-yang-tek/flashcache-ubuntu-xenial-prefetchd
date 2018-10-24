@@ -66,6 +66,7 @@
 
 #ifdef PREFETCHD_ON
 #include "pfd_stat.h"
+#include "pfd_cache.h"
 #endif
 
 /*
