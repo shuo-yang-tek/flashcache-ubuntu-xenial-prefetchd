@@ -163,19 +163,20 @@ void pfd_stat_init() {
 	spin_lock(&global_lock);
 	reset_pfd_stat_queue(&main_queue);
 	spin_unlock(&global_lock);
-	MPPRINTK("pfd_stat initialized");
+	MPPRINTK("\033[0;32;32mpfd_stat initialized");
 }
 
 void pfd_stat_update(
 		struct cache_c *dmc,
 		struct bio *bio,
-		struct pfd_public_stat *result) {
+		struct pfd_stat_info *result) {
 
 	struct pfd_stat_elm *elm;
 	struct pfd_stat *pfd_stat;
 	int pid = current->pid;
 	struct pfd_seq_stat *curr;
 	struct pfd_seq_stat *prev;
+	long new_stride_abs;
 
 	spin_lock(&global_lock);
 
@@ -202,7 +203,7 @@ void pfd_stat_update(
 
 	if (is_bio_fit_seq_stat(dmc, curr, bio)) {
 		curr->count += 1;
-		if (prev->count <= 0 || curr->count <= prev->count)
+		if (prev->count == 0 || curr->count <= prev->count)
 			goto end;
 		else {
 			swap_pfd_stat_curr_prev(pfd_stat);
@@ -214,7 +215,16 @@ void pfd_stat_update(
 			goto end;
 		}
 	} else {
-		if (prev->count <= 0) {
+		new_stride_abs = (long)bio->bi_iter.bi_sector - (long)curr->start;
+		new_stride_abs = new_stride_abs < 0 ? -new_stride_abs : new_stride_abs;
+		if (prev->count == 0) {
+			if ((new_stride_abs >> dmc->block_shift) < curr->count) {
+				curr->start = bio->bi_iter.bi_sector;
+				curr->count = 1;
+				pfd_stat->stride = 0;
+				pfd_stat->stride_count = 0;
+				goto end;
+			}
 			swap_pfd_stat_curr_prev(pfd_stat);
 			curr = pfd_stat->curr_seq_stat;
 			prev = pfd_stat->prev_seq_stat;
@@ -250,38 +260,24 @@ void pfd_stat_update(
 	}
 
 end:
-	result->curr_sect = bio->bi_iter.bi_sector;
-	result->curr_start_sect = curr->start;
-	result->curr_len = prev->count;
-	result->stride = pfd_stat->stride;
+	result->last_sect = bio->bi_iter.bi_sector;
+	result->seq_count = curr->count;
+	result->seq_total_count = prev->count;
+	result->stride_distance_sect = pfd_stat->stride;
 	result->stride_count = pfd_stat->stride_count;
 
 	spin_unlock(&global_lock);
 
-	DPPRINTK("pfd_stat updated",
-			pid,
-			bio->bi_iter.bi_sector);
+	DPPRINTK("pfd_stat updated");
 	DPPRINTK("\tpid: %d",
 			pid);
 	DPPRINTK("\treq: %lu",
-			bio->bi_iter.bi_sector);
+			result->last_sect);
 	DPPRINTK("\tstride: %ld",
-			result->stride);
+			result->stride_distance_sect);
 	DPPRINTK("\tseq: %ld / %ld",
-			curr->count,
-			result->curr_len);
+			result->seq_count,
+			result->seq_total_count);
 	DPPRINTK("\tstride_count: %ld",
 			result->stride_count);
-	/*DPPRINTK("-----------------");*/
-	/*DPPRINTK("curr_sect: %lu",*/
-			/*result->curr_sect);*/
-	/*DPPRINTK("curr_start_sect: %lu",*/
-			/*result->curr_start_sect);*/
-	/*DPPRINTK("curr_len: %ld",*/
-			/*result->curr_len);*/
-	/*DPPRINTK("stride: %ld",*/
-			/*result->stride);*/
-	/*DPPRINTK("stride_count: %ld",*/
-			/*result->stride_count);*/
-	/*DPPRINTK("-----------------");*/
 }

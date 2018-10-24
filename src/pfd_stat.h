@@ -4,11 +4,11 @@
 
 #ifndef PFD_STAT
 #define PFD_STAT
-struct pfd_public_stat {
-	sector_t curr_sect;
-	sector_t curr_start_sect;
-	long curr_len;
-	long stride;
+struct pfd_stat_info {
+	sector_t last_sect;
+	long seq_count;
+	long seq_total_count;
+	long stride_distance_sect;
 	long stride_count;
 };
 #endif
