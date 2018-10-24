@@ -239,15 +239,15 @@ bool pfd_cache_handle_bio(
 
 	if (meta->status == empty || meta->dbn != dbn)
 		goto cache_miss_unlock;
-	atomic_inc(&(cache->hold_count));
+	atomic_inc(&(meta->hold_count));
 
 	spin_unlock_irqrestore(&(cache->lock), flags);
-	if (cache->status == prepare) {
+	if (meta->status == prepare) {
 		down_interruptible(&(meta->prepare_lock));
 		up(&(meta->prepare_lock));
 	}
-	if (cache->status != active) {
-		atomic_dec(&(cache->hold_count));
+	if (meta->status != active) {
+		atomic_dec(&(meta->hold_count));
 		goto cache_miss;
 	}
 
@@ -261,7 +261,7 @@ bool pfd_cache_handle_bio(
 	}
 
 	bio_endio(bio);
-	atomic_dec(&(cache->hold_count));
+	atomic_dec(&(meta->hold_count));
 
 	DPPRINTK("\033[1;33mcache hit: %lu", dbn);
 	return true;
