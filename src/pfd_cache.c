@@ -145,7 +145,7 @@ void pfd_cache_exit() {
 	for (i = 0; i < PFD_CACHE_COUNT_PER_SET; i++) {
 		cache = main_cache_set.caches[i];
 		if (cache != NULL) {
-			vfree((void *)cache->data);
+			vfree((void *)(cache->data));
 			vfree((void *)cache);
 		}
 	}
