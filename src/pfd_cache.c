@@ -246,7 +246,7 @@ bool pfd_cache_handle_bio(
 		down_interruptible(&(meta->prepare_lock));
 		up(&(meta->prepare_lock));
 	}
-	if (meta->status != active) {
+	if (meta->status != valid) {
 		atomic_dec(&(meta->hold_count));
 		goto cache_miss;
 	}
