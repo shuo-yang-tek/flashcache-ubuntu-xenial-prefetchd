@@ -324,6 +324,6 @@ void pfd_cache_prefetch(
 		return;
 	}
 
-	DPPRINTK("-- %l",
+	DPPRINTK("-- %ld",
 			get_dbn_of_step(dmc, info, 1));
 }
