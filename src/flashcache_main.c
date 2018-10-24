@@ -1475,7 +1475,8 @@ flashcache_read(struct cache_c *dmc, struct bio *bio)
 #ifdef PREFETCHD_ON
 	struct pfd_stat_info pfd_stat_info;
 	pfd_stat_update(dmc, bio, &pfd_stat_info);
-	/*if (prefetchd_cache_handle_bio(bio)) return;*/
+	if (pfd_cache_handle_bio(dmc, bio))
+		return;
 #endif
 	
 	DPRINTK("Got a %s for %llu (%u bytes)",
@@ -1491,6 +1492,7 @@ flashcache_read(struct cache_c *dmc, struct bio *bio)
 		    (cacheblk->dbn == bio->bi_iter.bi_sector)) {
 			flashcache_read_hit(dmc, bio, index);
 #ifdef PREFETCHD_ON
+			pfd_cache_prefetch(dmc, &pfd_stat_info);
 #endif
 			return;
 		}
@@ -1540,6 +1542,7 @@ flashcache_read(struct cache_c *dmc, struct bio *bio)
 		/* Start uncached IO */
 		flashcache_start_uncached_io(dmc, bio);
 #ifdef PREFETCHD_ON
+		pfd_cache_prefetch(dmc, &pfd_stat_info);
 #endif
 		return;
 	} else 
@@ -1569,6 +1572,7 @@ flashcache_read(struct cache_c *dmc, struct bio *bio)
 		bio->bi_iter.bi_sector, bio->bi_iter.bi_size, index, "CACHE MISS & REPLACE");
 	flashcache_read_miss(dmc, bio, index);
 #ifdef PREFETCHD_ON
+	pfd_cache_prefetch(dmc, &pfd_stat_info);
 #endif
 }
 

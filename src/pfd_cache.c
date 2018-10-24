@@ -199,3 +199,42 @@ void pfd_cache_add(struct cache_c *dmc) {
 		MPPRINTK("\033[0;32;32mNew pfd_cache created.");
 	}
 }
+
+bool pfd_cache_handle_bio(
+		struct cache_c *dmc,
+		struct bio *bio) {
+
+	long flags;
+	struct pfd_cache *cache;
+
+	spin_lock_irqsave(&(main_cache_set.lock), flags);
+	cache = find_cache_in_cache_set(dmc, &main_cache_set);
+	spin_unlock_irqrestore(&(main_cache_set.lock), flags);
+
+	if (cache == NULL) {
+		MPPRINTK("\033[0;32;31mCan't find pfd_cache.");
+		return false;
+	}
+
+	DPPRINTK("pfd_cache found");
+	return false;
+}
+
+void pfd_cache_prefetch(
+		struct cache_c *dmc,
+		struct pfd_stat_info *info) {
+
+	long flags;
+	struct pfd_cache *cache;
+
+	spin_lock_irqsave(&(main_cache_set.lock), flags);
+	cache = find_cache_in_cache_set(dmc, &main_cache_set);
+	spin_unlock_irqrestore(&(main_cache_set.lock), flags);
+
+	if (cache == NULL) {
+		MPPRINTK("\033[0;32;31mCan't find pfd_cache.");
+		return;
+	}
+
+	DPPRINTK("pfd_cache found");
+}
