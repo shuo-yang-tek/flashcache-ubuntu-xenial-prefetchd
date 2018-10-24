@@ -316,7 +316,7 @@ static void
 alloc_prefetch(
 		struct pfd_cache_meta *meta,
 		sector_t dbn,
-		int look_index) {
+		int lookup_index) {
 }
 
 static bool
@@ -344,7 +344,7 @@ do_ssd_request(
 		if ((cacheblk->cache_state & VALID) && 
 				(cacheblk->dbn == dbn)) {
 			if (!(cacheblk->cache_state & BLOCK_IO_INPROG) && (cacheblk->nr_queued == 0)) {
-				cacheblk->cache_state |= CACHEREADINPROG;
+				/*cacheblk->cache_state |= CACHEREADINPROG;*/
 				ex_flashcache_setlocks_multidrop(dmc, &tmp_bio);
 				alloc_prefetch(meta, dbn, lookup_index);
 				return true;
