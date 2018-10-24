@@ -62,7 +62,7 @@
 
 #ifdef PREFETCHD_ON
 #include "pfd_stat.h"
-#include "pfd.cache.h"
+#include "pfd_cache.h"
 #endif
 
 struct cache_c *cache_list_head = NULL;
