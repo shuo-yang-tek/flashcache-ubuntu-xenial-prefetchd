@@ -409,4 +409,5 @@ void pfd_cache_prefetch(
 
 	spin_unlock_irqrestore(&(cache->lock), flags);
 	DPPRINTK("prefetch count: %ld", step - 1);
+	DPPRINTK("stop reason: %d\n", stop_reason);
 }
