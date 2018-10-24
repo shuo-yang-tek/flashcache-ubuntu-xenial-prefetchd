@@ -28,41 +28,174 @@
 #include "pfd_stat.h"
 #include "pfd_cache.h"
 
-DEFINE_SPINLOCK(global_lock);
-DEFINE_SPINLOCK(callback_lock);
+enum pfd_cache_meta_status {
+	empty = 1,
+	prepare,
+	valid,
+};
 
-static void do_prefetch_endless_seq(
+struct pfd_cache_set;
+struct pfd_cache;
+struct pfd_cache_meta;
+
+struct pfd_cache_meta {
+	struct pfd_cache *cache;
+
+	sector_t dbn;
+	enum pfd_cache_meta_status status;
+	struct semaphore prepare_lock;
+	atomic_t hold_count;
+
+	int ssd_index;
+};
+
+struct pfd_cache {
+	struct pfd_cache_set *cache_set;
+	struct cache_c *dmc;
+	struct pfd_cache_meta metas[PFD_CACHE_BLOCK_COUNT];
+	void *data;
+	spinlock_t lock;
+};
+
+enum pfd_cache_set_alloc_status {
+	alloc_empty = 1,
+	alloc_prepare,
+	alloc_active,
+};
+
+struct pfd_cache_set {
+	int count;
+	enum pfd_cache_set_alloc_status status_arr[PFD_CACHE_COUNT_PER_SET];
+	struct pfd_cache *caches[PFD_CACHE_COUNT_PER_SET];
+	spinlock_t lock;
+};
+
+struct pfd_cache_set main_cache_set;
+
+static struct *pfd_cache
+find_cache_in_cache_set(
 		struct cache_c *dmc,
-		struct pfd_public_stat *info) {
+		struct pfd_cache_set *cache_set) {
+	
+	struct pfd_cache *found_cache = NULL;
+	int i;
+
+	for (i = 0; i < PFD_CACHE_COUNT_PER_SET; i++) {
+		if (cache_set->status_arr[i] != alloc_active)
+			continue;
+		found_cache = cache_set->caches[i];
+		if (found_cache->dmc == dmc)
+			return found_cache;
+	}
+
+	return NULL;
 }
 
-static void do_prefetch_seq_back(
+static struct pfd_cache *
+init_pfd_cache(
 		struct cache_c *dmc,
-		struct pfd_public_stat *info) {
+		struct pfd_cache_set *cache_set,
+		int idx) {
+
+	struct pfd_cache *cache;
+	struct pfd_cache_meta *meta;
+	int i;
+
+	cache = (struct pfd_cache *)vmalloc(sizeof(struct pfd_cache));
+	if (cache == NULL)
+		return NULL;
+	cache->data = vmalloc(
+			PFD_CACHE_BLOCK_COUNT << (SECTOR_SHIFT + dmc->block_shift));
+	if (cache->data == NULL)
+		goto free_cache;
+
+	cache_set->caches[idx] = cache;
+	cache->cache_set = cache_set;
+	cache->dmc = dmc;
+	spin_lock_init(&(cache->lock));
+	for (i = 0; i < PFD_CACHE_BLOCK_COUNT; i++) {
+		meta = &(cache->metas[i]);
+		meta->cache = cache;
+		meta->status = empty;
+	}
+
+	return cache;
+
+free_cache:
+	vfree((void *)cache);
+	return NULL;
 }
 
-static void do_prefetch_stride(
-		struct cache_c *dmc,
-		struct pfd_public_stat *info) {
+void pfd_cache_init() {
+	int i;
+	main_cache_set.count = 0;
+	spin_lock_init(&(main_cache_set.lock));
+	for (i = 0; i < PFD_CACHE_COUNT_PER_SET; i++) {
+		main_cache_set.status_arr[i] = alloc_empty;
+		main_cache_set.caches[i] = NULL;
+	}
 }
 
-void pfd_cache_prefetch(
-		struct cache_c *dmc,
-		struct pfd_public_stat *info) {
-
+void pfd_cache_exit() {
 	long flags;
-	long stride_abs = info->stride < 0 ?
-		-(info->stride) : info->stride;
-	long stride_abs_blocks = stride_abs >> dmc->block_shift;
+	int i;
+	struct pfd_cache *cache;
 
-	spin_lock_irqsave(&global_lock, flags);
+	spin_lock_irqsave(&(main_cache_set->lock), flags);
+	for (i = 0; i < PFD_CACHE_COUNT_PER_SET; i++) {
+		cache = main_cache_set.caches[i];
+		if (cache != NULL) {
+			vfree((void *)cache->data);
+			vfree((void *)cache);
+		}
+	}
+	spin_unlock_irqrestore(&(main_cache_set->lock), flags);
+}
 
-	if (info->curr_len == 0)
-		do_prefetch_endless_seq(dmc, info);
-	else if (info->curr_len == stride_abs_blocks)
-		do_prefetch_seq_back(dmc, info);
-	else if (info->curr_len < stride_abs_blocks)
-		do_prefetch_stride(dmc, info);
+void pfd_cache_add(struct cache_c *dmc) {
+	struct pfd_cache *cache = NULL;
+	int i;
+	long flags;
 
-	spin_unlock_irqrestore(&global_lock, flags);
+	spin_lock_irqsave(&(main_cache_set->lock), flags);
+
+	cache = find_cache_in_cache_set(dmc, &main_cache_set);
+	if (cache != NULL) {
+		spin_unlock_irqrestore(&(main_cache_set->lock), flags);
+		MPPRINTK("pfd_cache already exist.");
+		return;
+	}
+
+	if (main_cache_set.count == PFD_CACHE_COUNT_PER_SET) {
+		spin_unlock_irqrestore(&(main_cache_set->lock), flags);
+		MPPRINTK("\033[0;32;31mNo room to add pfd_cache.");
+		return;
+	}
+
+	for(i = 0; i < PFD_CACHE_COUNT_PER_SET; i++) {
+		if (main_cache_set.status_arr[i] == alloc_empty) {
+			main_cache_set.status_arr[i] = alloc_prepare;
+			main_cache_set.count += 1;
+			break;
+		}
+	}
+	spin_unlock_irqrestore(&(main_cache_set->lock), flags);
+
+	if (i < PFD_CACHE_COUNT_PER_SET) {
+		cache = init_pfd_cache(dmc, &main_cache_set, i);
+		spin_lock_irqsave(&(main_cache_set->lock), flags);
+		if (cache == NULL) {
+			main_cache_set.status_arr[i] = alloc_empty;
+			main_cache_set.count -= 1;
+		} else {
+			main_cache_set.status_arr[i] = alloc_active;
+		}
+		spin_unlock_irqrestore(&(main_cache_set->lock), flags);
+	}
+
+	if (cache == NULL) {
+		MPPRINTK("\033[0;32;31mCan't alloc new pfd_cache.");
+	} else {
+		MPPRINTK("\033[0;32;32mNew pfd_cache created.");
+	}
 }
