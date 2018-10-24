@@ -72,6 +72,14 @@ struct pfd_cache_set {
 
 struct pfd_cache_set main_cache_set;
 
+inline int
+dbn_to_cache_index(
+		struct pfd_cache *cache,
+		sector_t dbn) {
+	return (int)
+		((dbn >> cache->dmc->block_shift) % PFD_CACHE_BLOCK_COUNT);
+}
+
 static struct pfd_cache *
 find_cache_in_cache_set(
 		struct cache_c *dmc,
@@ -206,6 +214,14 @@ bool pfd_cache_handle_bio(
 
 	long flags;
 	struct pfd_cache *cache;
+	struct pfd_cache_meta *meta;
+	sector_t dbn = bio->bi_iter.bi_sector;
+	int index;
+	void *data_src;
+	void *data_dest;
+	struct bio_vec bvec;
+	struct bvec_iter iter;
+
 
 	spin_lock_irqsave(&(main_cache_set.lock), flags);
 	cache = find_cache_in_cache_set(dmc, &main_cache_set);
@@ -216,7 +232,45 @@ bool pfd_cache_handle_bio(
 		return false;
 	}
 
-	DPPRINTK("pfd_cache found");
+	index = dbn_to_cache_index(cache, dbn);
+	meta = &(cache->metas[index]);
+
+	spin_lock_irqsave(&(cache->lock), flags);
+
+	if (meta->status == empty || meta->dbn != dbn)
+		goto cache_miss_unlock;
+	atomic_inc(&(cache->hold_count));
+
+	spin_unlock_irqrestore(&(cache->lock), flags);
+	if (cache->status == prepare) {
+		down_interruptible(&(meta->prepare_lock));
+		up(&(meta->prepare_lock));
+	}
+	if (cache->status != active) {
+		atomic_dec(&(cache->hold_count));
+		goto cache_miss;
+	}
+
+	data_src = cache->data + 
+		((unsigned long)index << (SECTOR_SHIFT + dmc->block_shift));
+	bio_for_each_segment(bvec, bio, iter) {
+		data_dest = kmap(bvec.bv_page) + bvec.bv_offset;
+		memcpy(data_dest, data_src, bvec.bv_len);
+		kunmap(bvec.bv_page);
+		data_src += bvec.bv_len;
+	}
+
+	bio_endio(bio);
+	atomic_dec(&(cache->hold_count));
+
+	DPPRINTK("\033[1;33mcache hit: %lu", dbn);
+	return true;
+
+cache_miss_unlock:
+	spin_unlock_irqrestore(&(cache->lock), flags);
+
+cache_miss:
+	DPPRINTK("\033[0;32;34mcache miss: %lu", dbn);
 	return false;
 }
 
