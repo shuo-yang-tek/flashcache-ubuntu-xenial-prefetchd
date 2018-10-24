@@ -348,9 +348,9 @@ static void io_callback(unsigned long error, void *context) {
 	if (meta->ssd_index >= 0) {
 		cacheblk = &(dmc->cache[meta->ssd_index]);
 		cache_set = &(dmc->cache_sets[meta->ssd_index / dmc->assoc]);
-		spin_lock(&cache_set->set_spin_lock, flags);
+		spin_lock(&cache_set->set_spin_lock);
 		cacheblk->cache_state &= ~BLOCK_IO_INPROG;
-		spin_unlock(&cache_set->set_spin_lock, flags);
+		spin_unlock(&cache_set->set_spin_lock);
 	}
 
 	spin_unlock(&(meta->cache->callback_lock));
