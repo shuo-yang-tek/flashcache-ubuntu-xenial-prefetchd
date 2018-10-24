@@ -17,4 +17,4 @@ void pfd_stat_init(void);
 void pfd_stat_update(
 		struct cache_c *dmc,
 		struct bio *bio,
-		struct pfd_public_stat *result);
+		struct pfd_stat_info *result);
