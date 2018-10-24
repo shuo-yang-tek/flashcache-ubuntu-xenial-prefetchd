@@ -338,7 +338,6 @@ static void io_callback(unsigned long error, void *context) {
 		(struct pfd_cache_meta *) context;
 	struct cache_set *cache_set;
 	struct cacheblock *cacheblk;
-	long flags;
 	struct pfd_cache *cache = meta->cache;
 	struct cache_c *dmc = cache->dmc;
 
@@ -349,9 +348,9 @@ static void io_callback(unsigned long error, void *context) {
 	if (meta->ssd_index >= 0) {
 		cacheblk = &(dmc->cache[meta->ssd_index]);
 		cache_set = &(dmc->cache_sets[meta->ssd_index / dmc->assoc]);
-		spin_lock_irqsave(&cache_set->set_spin_lock, flags);
+		spin_lock(&cache_set->set_spin_lock, flags);
 		cacheblk->cache_state &= ~BLOCK_IO_INPROG;
-		spin_unlock_irqrestore(&cache_set->set_spin_lock, flags);
+		spin_unlock(&cache_set->set_spin_lock, flags);
 	}
 
 	spin_unlock(&(meta->cache->callback_lock));
@@ -371,7 +370,7 @@ alloc_prefetch(
 	struct dm_io_request req;
 	struct dm_io_region region;
 	int dm_io_ret;
-	bool from_ssd = lookup_index >= 0;
+	bool from_ssd = lookup_index >= 0 ? true : false;
 
 	meta->dbn = dbn;
 	meta->status = prepare;
