@@ -386,13 +386,13 @@ alloc_prefetch(
 	req.mem.type = DM_IO_VMA;
 	req.mem.offset = 0;
 	req.mem.ptr.vma = (void *)meta->cache->data +
-		(unsigned long)dbn_to_cache_index(meta->cache, dbn) <<
-		(dmc->block_shift + SECTOR_SHIFT);
+		((unsigned long)dbn_to_cache_index(meta->cache, dbn) <<
+		 (dmc->block_shift + SECTOR_SHIFT));
 
 	region.bdev = from_ssd ?
 		dmc->cache_dev->bdev : dmc->disk_dev->bdev;
 	region.sector = from_ssd ?
-		INDEX_TO_CACHE_ADDR(dmc, index) :
+		INDEX_TO_CACHE_ADDR(dmc, lookup_index) :
 		dbn;
 	region.count = dmc->block_size;
 
