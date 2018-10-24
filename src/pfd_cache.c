@@ -274,6 +274,40 @@ cache_miss:
 	return false;
 }
 
+static long
+get_dbn_of_step(
+		struct cache_c *dmc,
+		struct pfd_stat_info *info,
+		long step) {
+
+	long result = (long)(info->last_sect);
+	long max_step = 
+		info->stride_count * info->seq_total_count +
+		info->seq_count;
+	long tmp;
+
+	max_step = max_step > PFD_CACHE_MAX_STEP ?
+		PFD_CACHE_MAX_STEP : max_step;
+
+	if (step > max_step)
+		return -1;
+
+	if (info->seq_total_count == 0 || 
+			step + info->seq_count <= info->seq_total_count)
+		result += step << dmc->block_shift;
+	else {
+		tmp = info->seq_count + step;
+		result += (tmp / info->seq_total_count) *
+			info->stride_distance_sect;
+		result += (tmp % info->seq_total_count) << dmc->block_shift;
+	}
+
+	if (result >= (long)(dmc->disk_dev->bdev->bd_part->nr_sects))
+		return = -1;
+
+	return result;
+}
+
 void pfd_cache_prefetch(
 		struct cache_c *dmc,
 		struct pfd_stat_info *info) {
@@ -290,5 +324,6 @@ void pfd_cache_prefetch(
 		return;
 	}
 
-	DPPRINTK("pfd_cache found");
+	DPPRINTK("-- %l",
+			get_dbn_of_step(dmc, info, 1));
 }

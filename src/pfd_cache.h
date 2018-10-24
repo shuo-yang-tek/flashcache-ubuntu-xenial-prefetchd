@@ -1,5 +1,6 @@
 #define PFD_CACHE_COUNT_PER_SET 4
 #define PFD_CACHE_BLOCK_COUNT 16384
+#define PFD_CACHE_MAX_STEP 128
 
 #include <stdbool.h>
 
