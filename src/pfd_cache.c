@@ -145,11 +145,9 @@ void pfd_cache_init() {
 }
 
 void pfd_cache_exit() {
-	long flags;
 	int i;
 	struct pfd_cache *cache;
 
-	spin_lock_irqsave(&(main_cache_set.lock), flags);
 	for (i = 0; i < PFD_CACHE_COUNT_PER_SET; i++) {
 		cache = main_cache_set.caches[i];
 		if (cache != NULL) {
@@ -157,7 +155,6 @@ void pfd_cache_exit() {
 			vfree((void *)cache);
 		}
 	}
-	spin_unlock_irqrestore(&(main_cache_set.lock), flags);
 }
 
 void pfd_cache_add(struct cache_c *dmc) {
