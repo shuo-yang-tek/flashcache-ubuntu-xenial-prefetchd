@@ -1473,8 +1473,8 @@ flashcache_read(struct cache_c *dmc, struct bio *bio)
 	unsigned long flags;
 
 #ifdef PREFETCHD_ON
-	struct pfd_public_stat pfd_public_stat;
-	pfd_stat_update(dmc, bio, &pfd_public_stat);
+	struct pfd_stat_info pfd_stat_info;
+	pfd_stat_update(dmc, bio, &pfd_stat_info);
 	/*if (prefetchd_cache_handle_bio(bio)) return;*/
 #endif
 	
