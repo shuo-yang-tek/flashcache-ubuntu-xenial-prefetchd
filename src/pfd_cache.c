@@ -193,6 +193,7 @@ void pfd_cache_add(struct cache_c *dmc) {
 			main_cache_set.status_arr[i] = alloc_empty;
 			main_cache_set.count -= 1;
 		} else {
+			main_cache_set.caches[i] = cache;
 			main_cache_set.status_arr[i] = alloc_active;
 		}
 		spin_unlock_irqrestore(&(main_cache_set.lock), flags);
