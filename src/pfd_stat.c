@@ -206,9 +206,6 @@ void pfd_stat_update(
 		if (prev->count == 0 || curr->count <= prev->count)
 			goto end;
 		else {
-			swap_pfd_stat_curr_prev(pfd_stat);
-			curr = pfd_stat->curr_seq_stat;
-			prev = pfd_stat->prev_seq_stat;
 			reset_pfd_seq_stat(prev);
 			pfd_stat->stride = 0;
 			pfd_stat->stride_count = 0;
@@ -273,11 +270,11 @@ end:
 			pid);
 	DPPRINTK("\treq: %lu",
 			result->last_sect);
-	DPPRINTK("\tstride: %ld",
-			result->stride_distance_sect);
 	DPPRINTK("\tseq: %ld / %ld",
 			result->seq_count,
 			result->seq_total_count);
+	DPPRINTK("\tstride: %ld",
+			result->stride_distance_sect);
 	DPPRINTK("\tstride_count: %ld",
 			result->stride_count);
 }
