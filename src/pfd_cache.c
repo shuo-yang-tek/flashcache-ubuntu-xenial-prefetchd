@@ -524,7 +524,7 @@ io_callback2(unsigned long error, void *context) {
 		spin_unlock_irqrestore(&(meta->lock_interrupt), flags1);
 	}
 
-	push_cb_context_stack(&(cache->context_stack), cb_contex, true);
+	push_cb_context_stack(&(cache->context_stack), cb_context, true);
 
 	DPPRINTK("%sio_callback. (%lu+%lu)",
 			error ? "\033[0;32;31m" : "",
@@ -540,7 +540,7 @@ dispatch_read_request(
 		int lookup_index) {
 
 	struct cache_c *dmc = cache->dmc;
-	int meta_index = dbn_to_cache_index(cahce, dbn);
+	int meta_index = dbn_to_cache_index(cache, dbn);
 	int req_count = count + meta_index > PFD_CACHE_BLOCK_COUNT ?
 		2 : 1;
 	struct pfd_cache_meta *meta;
