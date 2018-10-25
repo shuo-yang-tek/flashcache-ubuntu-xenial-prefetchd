@@ -551,8 +551,6 @@ dispatch_read_request(
 	bool ssd = lookup_index < 0 ? false : true;
 	struct cb_context *cb_context;
 
-	return 1;
-
 	req.bi_op = READ;
 	req.bi_op_flags = 0;
 	req.notify.fn = (io_notify_fn)io_callback2;
