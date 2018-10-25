@@ -698,6 +698,7 @@ update_dispatch_req_pool(
 	if (*start < 0) {
 		*start = dbn;
 		*count = 1;
+		return;
 	}
 
 	if (dbn + (long)dmc->block_size == *start)
@@ -775,9 +776,7 @@ void pfd_cache_prefetch(
 		dbn = get_dbn_of_step(dmc, info, step);
 		update_dispatch_req_pool(cache, dbn, &seq_pool_start, &seq_pool_count);
 	}
-	if (step > 1) {
-		flush_dispatch_req_pool(cache, seq_pool_start, seq_pool_count);
-	}
+	flush_dispatch_req_pool(cache, seq_pool_start, seq_pool_count);
 
 	DPPRINTK("stop reason: %d\n", stop_reason);
 }
