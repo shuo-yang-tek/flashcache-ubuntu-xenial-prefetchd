@@ -640,7 +640,7 @@ do_ssd_request(
 static void
 flush_dispatch_req_pool(
 		struct pfd_cache *cache,
-		sector_t start,
+		long start,
 		int count) {
 
 	struct pfd_cache_meta *meta;
@@ -649,12 +649,12 @@ flush_dispatch_req_pool(
 	long flags;
 	int ret = dispatch_read_request(
 			cache,
-			start,
+			(sector_t)start,
 			count,
 			-1);
 
 	if (ret != 0) {
-		tmp = PFD_CACHE_BLOCK_COUNT - dbn_to_cache_index(cache, start);
+		tmp = PFD_CACHE_BLOCK_COUNT - dbn_to_cache_index(cache, (sector_t)start);
 		for (i = 0; i < tmp; i++) {
 			meta = &(cache->metas[i]);
 			spin_lock_irqsave(&(meta->lock), flags);
@@ -664,7 +664,7 @@ flush_dispatch_req_pool(
 		}
 
 		if (i == 1) {
-			for (i = dbn_to_cache_index(cache, start); i < PFD_CACHE_BLOCK_COUNT; i++) {
+			for (i = dbn_to_cache_index(cache, (sector_t)start); i < PFD_CACHE_BLOCK_COUNT; i++) {
 				meta = &(cache->metas[i]);
 				spin_lock_irqsave(&(meta->lock), flags);
 				meta->status = empty;
@@ -678,15 +678,22 @@ flush_dispatch_req_pool(
 static void
 update_dispatch_req_pool(
 		struct pfd_cache *cache,
-		sector_t dbn,
-		sector_t *start,
+		long dbn,
+		long *start,
 		int *count) {
 
 	struct cache_c *dmc = cache->dmc;
 
-	if (dbn + (sector_t)dmc->block_size == *start)
-		*start -= (sector_t)dmc->block_size;
-	else if (*start + ((sector_t)count << dmc->block_shift) == dbn)
+	if (dbn < 0)
+		return;
+	if (*start < 0) {
+		*start = dbn;
+		*count = 1;
+	}
+
+	if (dbn + (long)dmc->block_size == *start)
+		*start -= (long)dmc->block_size;
+	else if (*start + ((long)count << dmc->block_shift) == dbn)
 		*count += 1;
 	else {
 		flush_dispatch_req_pool(cache, *start, *count);
@@ -706,8 +713,8 @@ void pfd_cache_prefetch(
 	int meta_idx;
 	struct pfd_cache_meta *meta;
 	int stop_reason = 0;
-	sector_t seq_pool_start;
-	int seq_pool_count = 1;
+	long seq_pool_start = -1;
+	int seq_pool_count;
 
 	spin_lock_irqsave(&(main_cache_set.lock), flags);
 	cache = find_cache_in_cache_set(dmc, &main_cache_set);
@@ -719,7 +726,6 @@ void pfd_cache_prefetch(
 	}
 
 	dbn = get_dbn_of_step(dmc, info, step);
-	seq_pool_start = dbn;
 	while (dbn >= 0) {
 		meta_idx = dbn_to_cache_index(cache, dbn);
 		meta = &(cache->metas[meta_idx]);
@@ -758,8 +764,7 @@ void pfd_cache_prefetch(
 		spin_unlock_irqrestore(&(meta->lock), flags);
 		step += 1;
 		dbn = get_dbn_of_step(dmc, info, step);
-		if (dbn >= 0)
-			update_dispatch_req_pool(cache, (sector_t)dbn, &seq_pool_start, &seq_pool_count);
+		update_dispatch_req_pool(cache, (sector_t)dbn, &seq_pool_start, &seq_pool_count);
 	}
 	if (step > 1) {
 		flush_dispatch_req_pool(cache, seq_pool_start, seq_pool_count);
