@@ -551,6 +551,8 @@ dispatch_read_request(
 	bool ssd = lookup_index < 0 ? false : true;
 	struct cb_context *cb_context;
 
+	return 1;
+
 	req.bi_op = READ;
 	req.bi_op_flags = 0;
 	req.notify.fn = (io_notify_fn)io_callback2;
@@ -605,6 +607,8 @@ do_ssd_request(
 	struct cache_c *dmc = meta->cache->dmc;
 	struct cacheblock *cacheblk;
 
+	return false;
+
 	tmp_bio.bi_iter.bi_sector = dbn;
 	tmp_bio.bi_iter.bi_size = 
 		(unsigned int)dmc->block_size << SECTOR_SHIFT;
@@ -652,6 +656,11 @@ flush_dispatch_req_pool(
 			(sector_t)start,
 			count,
 			-1);
+
+	if (start < 0) return;
+
+	DPPRINTK("---- %ld+%ld",
+			start, (long)count << dmc->block_shift);
 
 	if (ret != 0) {
 		tmp = PFD_CACHE_BLOCK_COUNT - dbn_to_cache_index(cache, (sector_t)start);
@@ -764,7 +773,7 @@ void pfd_cache_prefetch(
 		spin_unlock_irqrestore(&(meta->lock), flags);
 		step += 1;
 		dbn = get_dbn_of_step(dmc, info, step);
-		update_dispatch_req_pool(cache, (sector_t)dbn, &seq_pool_start, &seq_pool_count);
+		update_dispatch_req_pool(cache, dbn, &seq_pool_start, &seq_pool_count);
 	}
 	if (step > 1) {
 		flush_dispatch_req_pool(cache, seq_pool_start, seq_pool_count);
