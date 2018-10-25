@@ -515,14 +515,14 @@ int pfd_cache_reset() {
 		cache = main_cache_set.caches[i];
 		if (cache != NULL) {
 			spin_lock_irqsave(&(cache->lock), flags2);
-			for (j = 0; i < PFD_CACHE_BLOCK_COUNT; j++) {
+			for (j = 0; j < PFD_CACHE_BLOCK_COUNT; j++) {
 				meta = &(cache->metas[j]);
 				if (meta->status == prepare || atomic_read(&(meta->hold_count)) > 0) {
 					spin_unlock_irqrestore(&(cache->lock), flags2);
 					goto fail;
 				}
 			}
-			for (j = 0; i < PFD_CACHE_BLOCK_COUNT; j++) {
+			for (j = 0; j < PFD_CACHE_BLOCK_COUNT; j++) {
 				meta = &(cache->metas[j]);
 				meta->status = empty;
 				atomic_set(&(meta->hold_count), 0);
