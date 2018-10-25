@@ -557,8 +557,6 @@ dispatch_read_request(
 	req.client = ssd ? ssd_client : hdd_client;
 	req.mem.type = DM_IO_VMA;
 	req.mem.offset = 0;
-	region.bdev = ssd ?
-		dmc->cache_dev->bdev : dmc->disk_dev->bdev;
 
 	if (ssd) {
 		region.bdev = dmc->cache_dev->bdev;
@@ -571,14 +569,16 @@ dispatch_read_request(
 	for (i = 0; i < req_count; i++) {
 		cb_context = pop_cb_context_stack(&(cache->context_stack), false);
 		cb_context->index = meta_index;
-		cb_context->count = PFD_CACHE_BLOCK_COUNT - meta_index;
 		req.mem.ptr.vma = cache->data;
-		region.sector = dbn;
 		if (i != 0) {
-			cb_context->count = count - cb_context->count;
+			cb_context->count = meta_index + count - PFD_CACHE_BLOCK_COUNT;
+			cb_context->index = 0;
+		} else {
+			cb_context->count = meta_index + count > PFD_CACHE_BLOCK_COUNT ?
+				PFD_CACHE_BLOCK_COUNT - meta_index :
+				count;
 			req.mem.ptr.vma +=
 				(unsigned long) meta_index << (dmc->block_shift + SECTOR_SHIFT);
-			cb_context->index = 0;
 		}
 		req.notify.context = (void *) cb_context;
 		region.count = (sector_t)cb_context->count << dmc->block_shift;
@@ -654,6 +654,10 @@ flush_dispatch_req_pool(
 
 	if (start < 0) return;
 	start_index = dbn_to_cache_index(cache, (sector_t)start);
+
+	DPPRINTK("calling dispatch_read_request: %ld+%ld",
+			start,
+			(long)count << dmc->block_shift);
 
 	ret = dispatch_read_request(
 			cache,
