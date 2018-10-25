@@ -715,9 +715,9 @@ update_dispatch_req_pool(
 
 	if (dbn + (long)dmc->block_size == *start) {
 		*start = dbn;
-		*count += 1;
+		(*count) += 1;
 	} else if (*start + ((long)(*count) << dmc->block_shift) == dbn)
-		*count += 1;
+		(*count) += 1;
 	else {
 		flush_dispatch_req_pool(cache, *start, *count);
 		*start = dbn;
