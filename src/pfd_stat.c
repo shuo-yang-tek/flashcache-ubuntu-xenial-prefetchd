@@ -157,7 +157,7 @@ pfd_stat_queue_search(
 }
 
 DEFINE_SPINLOCK(global_lock);
-struct pfd_stat_queue main_queue;
+static struct pfd_stat_queue main_queue;
 
 void pfd_stat_init() {
 	spin_lock(&global_lock);

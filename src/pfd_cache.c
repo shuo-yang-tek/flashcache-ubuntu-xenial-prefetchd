@@ -41,9 +41,12 @@ struct pfd_cache_meta;
 struct pfd_cache_meta {
 	struct pfd_cache *cache;
 
+	struct semaphore prepare_lock;
+	spinlock_t lock;
+	spinlock_t lock_interrupt;
+
 	sector_t dbn;
 	enum pfd_cache_meta_status status;
-	struct semaphore prepare_lock;
 	atomic_t hold_count;
 
 	int ssd_index;
@@ -54,24 +57,23 @@ struct pfd_cache {
 	struct cache_c *dmc;
 	struct pfd_cache_meta metas[PFD_CACHE_BLOCK_COUNT];
 	void *data;
-	spinlock_t lock;
-	spinlock_t callback_lock;
 };
 
-enum pfd_cache_set_alloc_status {
-	alloc_empty = 1,
-	alloc_prepare,
-	alloc_active,
+enum cache_set_init_status {
+	set_empty = 1,
+	set_prepare,
+	set_valid,
 };
 
 struct pfd_cache_set {
 	int count;
-	enum pfd_cache_set_alloc_status status_arr[PFD_CACHE_COUNT_PER_SET];
+	enum cache_set_init_status status_arr[PFD_CACHE_COUNT_PER_SET];
+	struct cache_c *dmc_arr[PFD_CACHE_COUNT_PER_SET];
 	struct pfd_cache *caches[PFD_CACHE_COUNT_PER_SET];
 	spinlock_t lock;
 };
 
-struct pfd_cache_set main_cache_set;
+static struct pfd_cache_set main_cache_set;
 static struct dm_io_client *hdd_client;
 static struct dm_io_client *ssd_client;
 
@@ -87,16 +89,12 @@ static struct pfd_cache *
 find_cache_in_cache_set(
 		struct cache_c *dmc,
 		struct pfd_cache_set *cache_set) {
-	
-	struct pfd_cache *found_cache = NULL;
+
 	int i;
 
 	for (i = 0; i < PFD_CACHE_COUNT_PER_SET; i++) {
-		if (cache_set->status_arr[i] != alloc_active)
-			continue;
-		found_cache = cache_set->caches[i];
-		if (found_cache->dmc == dmc)
-			return found_cache;
+		if (cache_set->status_arr[i] == set_valid && cache_set->dmc_arr[i] == dmc)
+			return cache_set->caches[i];
 	}
 
 	return NULL;
@@ -123,13 +121,13 @@ init_pfd_cache(
 	cache_set->caches[idx] = cache;
 	cache->cache_set = cache_set;
 	cache->dmc = dmc;
-	spin_lock_init(&(cache->lock));
-	spin_lock_init(&(cache->callback_lock));
 	for (i = 0; i < PFD_CACHE_BLOCK_COUNT; i++) {
 		meta = &(cache->metas[i]);
 		meta->cache = cache;
 		meta->status = empty;
 		atomic_set(&(meta->hold_count), 0);
+		spin_lock_init(&(meta->lock));
+		spin_lock_init(&(meta->lock_interrupt));
 	}
 
 	return cache;
@@ -153,7 +151,8 @@ int pfd_cache_init() {
 	main_cache_set.count = 0;
 	spin_lock_init(&(main_cache_set.lock));
 	for (i = 0; i < PFD_CACHE_COUNT_PER_SET; i++) {
-		main_cache_set.status_arr[i] = alloc_empty;
+		main_cache_set.status_arr[i] = set_empty;
+		main_cache_set.dmc_arr[i] = NULL;
 		main_cache_set.caches[i] = NULL;
 	}
 
@@ -187,11 +186,13 @@ void pfd_cache_add(struct cache_c *dmc) {
 
 	spin_lock_irqsave(&(main_cache_set.lock), flags);
 
-	cache = find_cache_in_cache_set(dmc, &main_cache_set);
-	if (cache != NULL) {
-		spin_unlock_irqrestore(&(main_cache_set.lock), flags);
-		MPPRINTK("pfd_cache already exist.");
-		return;
+	for (i = 0; i < PFD_CACHE_COUNT_PER_SET; i++) {
+		if (main_cache_set.status_arr[i] != set_empty &&
+				main_cache_set.dmc_arr[i] == dmc) {
+			spin_unlock_irqrestore(&(main_cache_set.lock), flags);
+			MPPRINTK("pfd_cache already exist.");
+			return;
+		}
 	}
 
 	if (main_cache_set.count == PFD_CACHE_COUNT_PER_SET) {
@@ -201,8 +202,9 @@ void pfd_cache_add(struct cache_c *dmc) {
 	}
 
 	for(i = 0; i < PFD_CACHE_COUNT_PER_SET; i++) {
-		if (main_cache_set.status_arr[i] == alloc_empty) {
-			main_cache_set.status_arr[i] = alloc_prepare;
+		if (main_cache_set.status_arr[i] == set_empty) {
+			main_cache_set.status_arr[i] = set_prepare;
+			main_cache_set.dmc_arr[i] = dmc;
 			main_cache_set.count += 1;
 			break;
 		}
@@ -213,10 +215,11 @@ void pfd_cache_add(struct cache_c *dmc) {
 		cache = init_pfd_cache(dmc, &main_cache_set, i);
 		spin_lock_irqsave(&(main_cache_set.lock), flags);
 		if (cache == NULL) {
-			main_cache_set.status_arr[i] = alloc_empty;
+			main_cache_set.status_arr[i] = set_empty;
+			main_cache_set.dmc_arr[i] = NULL;
 			main_cache_set.count -= 1;
 		} else {
-			main_cache_set.status_arr[i] = alloc_active;
+			main_cache_set.status_arr[i] = set_valid;
 		}
 		spin_unlock_irqrestore(&(main_cache_set.lock), flags);
 	}
@@ -255,13 +258,14 @@ bool pfd_cache_handle_bio(
 	index = dbn_to_cache_index(cache, dbn);
 	meta = &(cache->metas[index]);
 
-	spin_lock_irqsave(&(cache->lock), flags);
+	spin_lock_irqsave(&(meta->lock), flags);
 
 	if (meta->status == empty || meta->dbn != dbn)
 		goto cache_miss_unlock;
-	atomic_inc(&(meta->hold_count));
 
-	spin_unlock_irqrestore(&(cache->lock), flags);
+	atomic_inc(&(meta->hold_count));
+	spin_unlock_irqrestore(&(meta->lock), flags);
+
 	if (meta->status == prepare) {
 		down_interruptible(&(meta->prepare_lock));
 		up(&(meta->prepare_lock));
@@ -287,7 +291,7 @@ bool pfd_cache_handle_bio(
 	return true;
 
 cache_miss_unlock:
-	spin_unlock_irqrestore(&(cache->lock), flags);
+	spin_unlock_irqrestore(&(meta->lock), flags);
 
 cache_miss:
 	DPPRINTK("\033[0;32;34mcache miss: %lu", dbn);
@@ -305,6 +309,7 @@ get_dbn_of_step(
 		info->stride_count * info->seq_total_count +
 		info->seq_count;
 	long tmp;
+	long walk_sects;
 
 	if (max_step < PFD_CACHE_THRESHOLD_STEP)
 		return -1;
@@ -320,10 +325,13 @@ get_dbn_of_step(
 		result += step << dmc->block_shift;
 	else {
 		tmp = info->seq_count + step - 1;
-		/*result -= info->seq_count << dmc->block_shift;*/
-		result += (tmp / info->seq_total_count) *
+		walk_sects = (tmp / info->seq_total_count) *
 			info->stride_distance_sect;
-		result += (tmp % info->seq_total_count) << dmc->block_shift;
+		walk_sects += (tmp % info->seq_total_count) << dmc->block_shift;
+		if (walk_sects >> (dmc->block_shift) >= PFD_CACHE_BLOCK_COUNT)
+			return -1;
+		else
+			result += walk_sects;
 	}
 
 	if (result >= (long)(dmc->disk_dev->bdev->bd_part->nr_sects))
@@ -339,20 +347,21 @@ static void io_callback(unsigned long error, void *context) {
 	struct cacheblock *cacheblk;
 	struct pfd_cache *cache = meta->cache;
 	struct cache_c *dmc = cache->dmc;
+	long flags1, flags2;
 
-	spin_lock(&(cache->callback_lock));
-	meta->status = error ? empty : valid;
+	spin_lock_irqsave(&(meta->lock_interrupt), flags1);
+	meta->status = error != 0 ? empty : valid;
 	up(&(meta->prepare_lock));
 
 	if (meta->ssd_index >= 0) {
 		cacheblk = &(dmc->cache[meta->ssd_index]);
 		cache_set = &(dmc->cache_sets[meta->ssd_index / dmc->assoc]);
-		spin_lock(&cache_set->set_spin_lock);
+		spin_lock_irqsave(&cache_set->set_spin_lock, flags2);
 		cacheblk->cache_state &= ~BLOCK_IO_INPROG;
-		spin_unlock(&cache_set->set_spin_lock);
+		spin_unlock_irqrestore(&cache_set->set_spin_lock, flags2);
 	}
 
-	spin_unlock(&(meta->cache->callback_lock));
+	spin_unlock_irqrestore(&(meta->lock_interrupt), flags1);
 
 	DPPRINTK("%sio_callback. (%lu)",
 			error ? "\033[0;32;31m" : "",
@@ -381,7 +390,7 @@ alloc_prefetch(
 	req.bi_op_flags = 0;
 	req.notify.fn = (io_notify_fn)io_callback;
 	req.notify.context = (void *)(meta);
-	req.client = !from_ssd ? hdd_client : ssd_client;
+	req.client = from_ssd ? ssd_client : hdd_client;
 	req.mem.type = DM_IO_VMA;
 	req.mem.offset = 0;
 	req.mem.ptr.vma = meta->cache->data +
@@ -398,6 +407,7 @@ alloc_prefetch(
 	dm_io_ret = dm_io(&req, 1, &region, NULL);
 	if (dm_io_ret) {
 		meta->status = empty;
+		up(&(meta->prepare_lock));
 	}
 	DPPRINTK("prefetch (%lu) on %s: %s.",
 			dbn,
@@ -462,38 +472,41 @@ void pfd_cache_prefetch(
 		return;
 	}
 
-	spin_lock_irqsave(&(cache->lock), flags);
-
 	dbn = get_dbn_of_step(dmc, info, step);
 	while (dbn >= 0) {
 		meta_idx = dbn_to_cache_index(cache, dbn);
 		meta = &(cache->metas[meta_idx]);
 
+		spin_lock_irqsave(&(meta->lock), flags);
+
 		if (meta->status != empty && meta->dbn == (sector_t)dbn) {
 			// mem already
 			stop_reason = 1;
+			spin_unlock_irqrestore(&(meta->lock), flags);
 			break;
 		}
 		if (meta->status == prepare ||
 				atomic_read(&(meta->hold_count)) > 0) {
 			// no room
 			stop_reason = 2;
+			spin_unlock_irqrestore(&(meta->lock), flags);
 			break;
 		}
 
 		// check ssd
 		if (do_ssd_request(meta, dbn)) {
 			stop_reason = 3;
+			spin_unlock_irqrestore(&(meta->lock), flags);
 			break;
 		}
 
 		// do hdd
 		alloc_prefetch(meta, dbn, -1);
+		spin_unlock_irqrestore(&(meta->lock), flags);
 		step += 1;
 		dbn = get_dbn_of_step(dmc, info, step);
 	}
 
-	spin_unlock_irqrestore(&(cache->lock), flags);
 	DPPRINTK("prefetch count: %ld", step - 1);
 	DPPRINTK("stop reason: %d\n", stop_reason);
 }
@@ -514,20 +527,16 @@ int pfd_cache_reset() {
 		}
 		cache = main_cache_set.caches[i];
 		if (cache != NULL) {
-			spin_lock_irqsave(&(cache->lock), flags2);
 			for (j = 0; j < PFD_CACHE_BLOCK_COUNT; j++) {
 				meta = &(cache->metas[j]);
+				spin_lock_irqsave(&(meta->lock), flags2);
 				if (meta->status == prepare || atomic_read(&(meta->hold_count)) > 0) {
-					spin_unlock_irqrestore(&(cache->lock), flags2);
+					spin_unlock_irqrestore(&(meta->lock), flags2);
 					goto fail;
 				}
-			}
-			for (j = 0; j < PFD_CACHE_BLOCK_COUNT; j++) {
-				meta = &(cache->metas[j]);
 				meta->status = empty;
-				atomic_set(&(meta->hold_count), 0);
+				spin_unlock_irqrestore(&(meta->lock), flags2);
 			}
-			spin_unlock_irqrestore(&(cache->lock), flags2);
 		}
 	}
 
