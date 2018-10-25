@@ -657,15 +657,11 @@ flush_dispatch_req_pool(
 	if (start < 0) return;
 	start_index = dbn_to_cache_index(cache, (sector_t)start);
 
-	/*ret = dispatch_read_request(*/
-			/*cache,*/
-			/*(sector_t)start,*/
-			/*count,*/
-			/*-1);*/
-	ret = 1;
-
-	DPPRINTK("---- %ld+%ld",
-			start, (long)count << dmc->block_shift);
+	ret = dispatch_read_request(
+			cache,
+			(sector_t)start,
+			count,
+			-1);
 
 	if (ret == 1) {
 		for (i = 0; i < count; i++) {
