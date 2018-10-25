@@ -711,8 +711,10 @@ update_dispatch_req_pool(
 		return;
 	}
 
-	if (dbn + (long)dmc->block_size == *start)
+	if (dbn + (long)dmc->block_size == *start) {
 		*start -= (long)dmc->block_size;
+		*count += 1;
+	}
 	else if (*start + ((long)count << dmc->block_shift) == dbn)
 		*count += 1;
 	else {
