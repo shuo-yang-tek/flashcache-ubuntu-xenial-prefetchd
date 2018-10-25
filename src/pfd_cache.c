@@ -663,7 +663,8 @@ flush_dispatch_req_pool(
 			start, (long)count << dmc->block_shift);
 
 	if (ret != 0) {
-		tmp = PFD_CACHE_BLOCK_COUNT - dbn_to_cache_index(cache, (sector_t)start);
+		tmp = start + count > PFD_CACHE_BLOCK_COUNT ?
+			start + count - PFD_CACHE_BLOCK_COUNT : count;
 		for (i = 0; i < tmp; i++) {
 			meta = &(cache->metas[i]);
 			spin_lock_irqsave(&(meta->lock), flags);
