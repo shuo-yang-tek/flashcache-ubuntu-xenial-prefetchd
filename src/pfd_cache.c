@@ -779,9 +779,20 @@ void pfd_cache_prefetch(
 
 		// do hdd
 		spin_unlock_irqrestore(&(meta->lock), flags);
-		update_dispatch_req_pool(meta, dbn, &seq_pool_start, &seq_pool_count);
+		if (info->stride_distance_sect >= 0)
+			update_dispatch_req_pool(meta, dbn, &seq_pool_start, &seq_pool_count);
 		step += 1;
 		dbn = get_dbn_of_step(dmc, info, step);
+	}
+	if (info->stride_distance_sect < 0) {
+		for (step -= 1; step > 0; step--) {
+			dbn = get_dbn_of_step(dmc, info, step);
+			if (dbn < 0) continue;
+
+			meta_idx = dbn_to_cache_index(cache, dbn);
+			meta = &(cache->metas[meta_idx]);
+			update_dispatch_req_pool(meta, dbn, &seq_pool_start, &seq_pool_count);
+		}
 	}
 	flush_dispatch_req_pool(cache, seq_pool_start, seq_pool_count);
 
