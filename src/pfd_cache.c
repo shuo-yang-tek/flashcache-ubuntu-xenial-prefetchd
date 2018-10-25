@@ -689,15 +689,22 @@ flush_dispatch_req_pool(
 
 static void
 update_dispatch_req_pool(
-		struct pfd_cache *cache,
+		struct pfd_cache_meta *meta,
 		long dbn,
 		long *start,
 		int *count) {
 
+	struct pfd_cache *cache = meta->cache;
 	struct cache_c *dmc = cache->dmc;
+	long flags;
 
-	if (dbn < 0)
+	if (dbn < 0) {
+		spin_lock_irqsave(&(meta->lock), flags);
+		meta->status = empty;
+		up(&(meta->prepare_lock));
+		spin_unlock_irqrestore(&(meta->lock));
 		return;
+	}
 	if (*start < 0) {
 		*start = dbn;
 		*count = 1;
@@ -777,7 +784,7 @@ void pfd_cache_prefetch(
 		spin_unlock_irqrestore(&(meta->lock), flags);
 		step += 1;
 		dbn = get_dbn_of_step(dmc, info, step);
-		update_dispatch_req_pool(cache, dbn, &seq_pool_start, &seq_pool_count);
+		update_dispatch_req_pool(meta, dbn, &seq_pool_start, &seq_pool_count);
 	}
 	flush_dispatch_req_pool(cache, seq_pool_start, seq_pool_count);
 
