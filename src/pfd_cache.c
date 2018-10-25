@@ -522,7 +522,7 @@ int pfd_cache_reset() {
 	spin_lock_irqsave(&(main_cache_set.lock), flags1);
 
 	for (i = 0; i < PFD_CACHE_COUNT_PER_SET; i++) {
-		if (main_cache_set.status_arr[i] == alloc_prepare) {
+		if (main_cache_set.status_arr[i] == set_prepare) {
 			goto fail;
 		}
 		cache = main_cache_set.caches[i];
