@@ -651,13 +651,15 @@ flush_dispatch_req_pool(
 	struct cache_c *dmc = cache->dmc;
 	int i, tmp;
 	long flags;
-	int ret = dispatch_read_request(
+	int ret;
+
+	if (start < 0) return;
+
+	ret = dispatch_read_request(
 			cache,
 			(sector_t)start,
 			count,
 			-1);
-
-	if (start < 0) return;
 
 	DPPRINTK("---- %ld+%ld",
 			start, (long)count << dmc->block_shift);
@@ -672,8 +674,6 @@ flush_dispatch_req_pool(
 			up(&(meta->prepare_lock));
 			spin_unlock_irqrestore(&(meta->lock), flags);
 		}
-
-		DPPRINTK("!!!!");
 
 		if (i == 1) {
 			for (i = dbn_to_cache_index(cache, (sector_t)start); i < PFD_CACHE_BLOCK_COUNT; i++) {
