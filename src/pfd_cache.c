@@ -655,6 +655,7 @@ flush_dispatch_req_pool(
 	int start_index;
 
 	if (start < 0) return;
+	start_index = dbn_to_cache_index(cache, (sector_t)start);
 
 	/*ret = dispatch_read_request(*/
 			/*cache,*/
@@ -666,26 +667,22 @@ flush_dispatch_req_pool(
 	DPPRINTK("---- %ld+%ld",
 			start, (long)count << dmc->block_shift);
 
-	if (ret != 0) {
-		start_index = dbn_to_cache_index(cache, (sector_t)start);
-		tmp = start_index + count > PFD_CACHE_BLOCK_COUNT ?
-			start_index + count - PFD_CACHE_BLOCK_COUNT : count;
+	if (ret == 1) {
+		for (i = 0; i < count; i++) {
+			meta = &(cache->metas[(i + start_index) % PFD_CACHE_BLOCK_COUNT]);
+			spin_lock_irqsave(&(meta->lock), flags);
+			meta->status = empty;
+			up(&(meta->prepare_lock));
+			spin_unlock_irqrestore(&(meta->lock), flags);
+		}
+	} else if (ret == 2) {
+		tmp = start_index + count - PFD_CACHE_BLOCK_COUNT;
 		for (i = 0; i < tmp; i++) {
 			meta = &(cache->metas[i]);
 			spin_lock_irqsave(&(meta->lock), flags);
 			meta->status = empty;
 			up(&(meta->prepare_lock));
 			spin_unlock_irqrestore(&(meta->lock), flags);
-		}
-
-		if (i == 1) {
-			for (i = start_index; i < PFD_CACHE_BLOCK_COUNT; i++) {
-				meta = &(cache->metas[i]);
-				spin_lock_irqsave(&(meta->lock), flags);
-				meta->status = empty;
-				up(&(meta->prepare_lock));
-				spin_unlock_irqrestore(&(meta->lock), flags);
-			}
 		}
 	}
 }
