@@ -788,9 +788,9 @@ void pfd_cache_prefetch(
 
 		// do hdd
 		spin_unlock_irqrestore(&(meta->lock), flags);
+		update_dispatch_req_pool(meta, dbn, &seq_pool_start, &seq_pool_count);
 		step += 1;
 		dbn = get_dbn_of_step(dmc, info, step);
-		update_dispatch_req_pool(meta, dbn, &seq_pool_start, &seq_pool_count);
 	}
 	flush_dispatch_req_pool(cache, seq_pool_start, seq_pool_count);
 
