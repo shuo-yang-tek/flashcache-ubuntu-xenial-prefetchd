@@ -673,6 +673,8 @@ flush_dispatch_req_pool(
 			spin_unlock_irqrestore(&(meta->lock), flags);
 		}
 
+		DPPRINTK("!!!!");
+
 		if (i == 1) {
 			for (i = dbn_to_cache_index(cache, (sector_t)start); i < PFD_CACHE_BLOCK_COUNT; i++) {
 				meta = &(cache->metas[i]);
