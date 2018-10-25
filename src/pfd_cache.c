@@ -652,21 +652,24 @@ flush_dispatch_req_pool(
 	int i, tmp;
 	long flags;
 	int ret;
+	int start_index;
 
 	if (start < 0) return;
 
-	ret = dispatch_read_request(
-			cache,
-			(sector_t)start,
-			count,
-			-1);
+	/*ret = dispatch_read_request(*/
+			/*cache,*/
+			/*(sector_t)start,*/
+			/*count,*/
+			/*-1);*/
+	ret = 1;
 
 	DPPRINTK("---- %ld+%ld",
 			start, (long)count << dmc->block_shift);
 
 	if (ret != 0) {
-		tmp = start + count > PFD_CACHE_BLOCK_COUNT ?
-			start + count - PFD_CACHE_BLOCK_COUNT : count;
+		start_index = dbn_to_cache_index(cache, (sector_t)start);
+		tmp = start_index + count > PFD_CACHE_BLOCK_COUNT ?
+			start_index + count - PFD_CACHE_BLOCK_COUNT : count;
 		for (i = 0; i < tmp; i++) {
 			meta = &(cache->metas[i]);
 			spin_lock_irqsave(&(meta->lock), flags);
@@ -676,7 +679,7 @@ flush_dispatch_req_pool(
 		}
 
 		if (i == 1) {
-			for (i = dbn_to_cache_index(cache, (sector_t)start); i < PFD_CACHE_BLOCK_COUNT; i++) {
+			for (i = start_index; i < PFD_CACHE_BLOCK_COUNT; i++) {
 				meta = &(cache->metas[i]);
 				spin_lock_irqsave(&(meta->lock), flags);
 				meta->status = empty;
