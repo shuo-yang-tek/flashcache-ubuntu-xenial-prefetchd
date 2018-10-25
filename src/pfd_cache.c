@@ -327,7 +327,8 @@ get_dbn_of_step(
 		tmp = info->seq_count + step - 1;
 		walk_sects = (tmp / info->seq_total_count) *
 			info->stride_distance_sect;
-		walk_sects += info->seq_count - 1 + (step % info->seq_total_count);
+		walk_sects += 
+			((info->seq_count - 1 + step) % info->seq_total_count) << dmc->block_shift;
 		if (walk_sects >> (dmc->block_shift) >= PFD_CACHE_BLOCK_COUNT)
 			return -1;
 		else
