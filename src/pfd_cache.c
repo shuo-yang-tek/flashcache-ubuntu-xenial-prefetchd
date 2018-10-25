@@ -698,8 +698,6 @@ update_dispatch_req_pool(
 	struct cache_c *dmc = cache->dmc;
 	long flags;
 
-	DPPRINTK("==== %ld, %d: %ld", *start, *count, dbn);
-
 	if (dbn < 0) {
 		spin_lock_irqsave(&(meta->lock), flags);
 		meta->status = empty;
@@ -710,7 +708,6 @@ update_dispatch_req_pool(
 	if (*start < 0) {
 		*start = dbn;
 		*count = 1;
-		DPPRINTK("++++ %ld, %d", *start, *count);
 		return;
 	}
 
@@ -720,12 +717,10 @@ update_dispatch_req_pool(
 	} else if (dbn - (*start) == (*count) << dmc->block_shift)
 		*count += 1;
 	else {
-		DPPRINTK("!!! %ld, %d", *start, *count);
 		flush_dispatch_req_pool(cache, *start, *count);
 		*start = dbn;
 		*count = 1;
 	}
-	DPPRINTK("++++ %ld, %d", *start, *count);
 }
 
 void pfd_cache_prefetch(
