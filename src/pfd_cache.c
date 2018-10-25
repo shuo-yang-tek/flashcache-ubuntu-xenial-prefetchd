@@ -758,7 +758,8 @@ void pfd_cache_prefetch(
 		spin_unlock_irqrestore(&(meta->lock), flags);
 		step += 1;
 		dbn = get_dbn_of_step(dmc, info, step);
-		update_dispatch_req_pool(cache, dbn, &seq_pool_start, &seq_pool_count);
+		if (dbn >= 0)
+			update_dispatch_req_pool(cache, (sector_t)dbn, &seq_pool_start, &seq_pool_count);
 	}
 	if (step > 1) {
 		flush_dispatch_req_pool(cache, seq_pool_start, seq_pool_count);
