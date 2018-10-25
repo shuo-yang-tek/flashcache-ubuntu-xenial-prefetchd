@@ -37,6 +37,7 @@ enum pfd_cache_meta_status {
 struct pfd_cache_set;
 struct pfd_cache;
 struct pfd_cache_meta;
+struct cb_context_stack;
 
 struct pfd_cache_meta {
 	struct pfd_cache *cache;
@@ -57,6 +58,7 @@ struct pfd_cache {
 	struct cache_c *dmc;
 	struct pfd_cache_meta metas[PFD_CACHE_BLOCK_COUNT];
 	void *data;
+	struct cb_context_stack context_stack;
 };
 
 enum cache_set_init_status {
@@ -72,6 +74,80 @@ struct pfd_cache_set {
 	struct pfd_cache *caches[PFD_CACHE_COUNT_PER_SET];
 	spinlock_t lock;
 };
+
+struct cb_context {
+	struct pfd_cache *cache;
+	int index;
+	int count;
+	struct cb_context *next;
+};
+
+struct cb_context_stack {
+	struct cb_context pool[PFD_CACHE_BLOCK_COUNT];
+	int count;
+	struct cb_context *head;
+	spinlock_t lock;
+	spinlock_t lock_interrupt;
+};
+
+static void
+init_cb_context_stack(struct pfd_cache *cache) {
+	int i;
+	struct cb_context *cc;
+	struct cb_context_stack *stack = &(cache->context_stack);
+
+	for (i = 0; i < PFD_CACHE_BLOCK_COUNT; i++) {
+		cc = &(stack->pool[i]);
+		cc->next = i == PFD_CACHE_BLOCK_COUNT - 1 ?
+			NULL : &(stack->pool[i + 1]);
+		cc->cache = cache;
+	}
+
+	stack->count = PFD_CACHE_BLOCK_COUNT;
+	stack->head = &(stack->pool[0]);
+	spin_lock_init(&(stack->lock));
+	spin_lock_init(&(stack->lock_interrupt));
+}
+
+static struct cb_context *
+pop_cb_context_stack(struct cb_context_stack *stack, bool interrupt) {
+	long flags;
+	struct cb_context *result;
+	spinlock_t *lock = interrupt ?
+		&(stack->lock_interrupt) :
+		&(stack->lock);
+
+	spin_lock_irqsave(lock, flags);
+	if (stack->count == 0) {
+		spin_unlock_irqrestore(lock, flags);
+		return NULL;
+	}
+
+	result = stack->head;
+	stack->head = result->next;
+	stack->count -= 1;
+	result->next = NULL;
+
+	spin_unlock_irqrestore(lock, flags);
+	return result;
+}
+
+static void
+push_cb_context_stack(
+		struct cb_context_stack *stack,
+		struct cb_context *context,
+		bool interrupt) {
+
+	spinlock_t *lock = interrupt ?
+		&(stack->lock_interrupt) :
+		&(stack->lock);
+	long flags;
+	spin_lock_irqsave(lock, flags);
+	context->next = stack->head;
+	stack->head = context;
+	stack->count += 1;
+	spin_unlock_irqrestore(lock, flags);
+}
 
 static struct pfd_cache_set main_cache_set;
 static struct dm_io_client *hdd_client;
@@ -129,6 +205,8 @@ init_pfd_cache(
 		spin_lock_init(&(meta->lock));
 		spin_lock_init(&(meta->lock_interrupt));
 	}
+
+	init_cb_context_stack(cache);
 
 	return cache;
 
@@ -341,79 +419,180 @@ get_dbn_of_step(
 	return result;
 }
 
-static void io_callback(unsigned long error, void *context) {
-	struct pfd_cache_meta *meta =
-		(struct pfd_cache_meta *) context;
-	struct cache_set *cache_set;
-	struct cacheblock *cacheblk;
-	struct pfd_cache *cache = meta->cache;
-	struct cache_c *dmc = cache->dmc;
-	long flags1, flags2;
+/*static void io_callback(unsigned long error, void *context) {*/
+	/*struct pfd_cache_meta *meta =*/
+		/*(struct pfd_cache_meta *) context;*/
+	/*struct cache_set *cache_set;*/
+	/*struct cacheblock *cacheblk;*/
+	/*struct pfd_cache *cache = meta->cache;*/
+	/*struct cache_c *dmc = cache->dmc;*/
+	/*long flags1, flags2;*/
 
-	spin_lock_irqsave(&(meta->lock_interrupt), flags1);
-	meta->status = error != 0 ? empty : valid;
-	up(&(meta->prepare_lock));
+	/*spin_lock_irqsave(&(meta->lock_interrupt), flags1);*/
+	/*meta->status = error != 0 ? empty : valid;*/
+	/*up(&(meta->prepare_lock));*/
 
-	if (meta->ssd_index >= 0) {
-		cacheblk = &(dmc->cache[meta->ssd_index]);
-		cache_set = &(dmc->cache_sets[meta->ssd_index / dmc->assoc]);
-		spin_lock_irqsave(&cache_set->set_spin_lock, flags2);
-		cacheblk->cache_state &= ~BLOCK_IO_INPROG;
-		spin_unlock_irqrestore(&cache_set->set_spin_lock, flags2);
-	}
+	/*if (meta->ssd_index >= 0) {*/
+		/*cacheblk = &(dmc->cache[meta->ssd_index]);*/
+		/*cache_set = &(dmc->cache_sets[meta->ssd_index / dmc->assoc]);*/
+		/*spin_lock_irqsave(&cache_set->set_spin_lock, flags2);*/
+		/*cacheblk->cache_state &= ~BLOCK_IO_INPROG;*/
+		/*spin_unlock_irqrestore(&cache_set->set_spin_lock, flags2);*/
+	/*}*/
 
-	spin_unlock_irqrestore(&(meta->lock_interrupt), flags1);
+	/*spin_unlock_irqrestore(&(meta->lock_interrupt), flags1);*/
 
-	DPPRINTK("%sio_callback. (%lu)",
-			error ? "\033[0;32;31m" : "",
-			meta->dbn);
-}
+	/*DPPRINTK("%sio_callback. (%lu)",*/
+			/*error ? "\033[0;32;31m" : "",*/
+			/*meta->dbn);*/
+/*}*/
+
+/*static void*/
+/*alloc_prefetch(*/
+		/*struct pfd_cache_meta *meta,*/
+		/*sector_t dbn,*/
+		/*int lookup_index) {*/
+
+	/*struct cache_c *dmc = meta->cache->dmc;*/
+	/*struct dm_io_request req;*/
+	/*struct dm_io_region region;*/
+	/*int dm_io_ret;*/
+	/*bool from_ssd = lookup_index >= 0 ? true : false;*/
+
+	/*meta->dbn = dbn;*/
+	/*meta->status = prepare;*/
+	/*sema_init(&(meta->prepare_lock), 0);*/
+	/*atomic_set(&(meta->hold_count), 0);*/
+	/*meta->ssd_index = lookup_index;*/
+
+	/*req.bi_op = READ;*/
+	/*req.bi_op_flags = 0;*/
+	/*req.notify.fn = (io_notify_fn)io_callback;*/
+	/*req.notify.context = (void *)(meta);*/
+	/*req.client = from_ssd ? ssd_client : hdd_client;*/
+	/*req.mem.type = DM_IO_VMA;*/
+	/*req.mem.offset = 0;*/
+	/*req.mem.ptr.vma = meta->cache->data +*/
+		/*((unsigned long)dbn_to_cache_index(meta->cache, dbn) <<*/
+		 /*(dmc->block_shift + SECTOR_SHIFT));*/
+
+	/*region.bdev = from_ssd ?*/
+		/*dmc->cache_dev->bdev : dmc->disk_dev->bdev;*/
+	/*region.sector = from_ssd ?*/
+		/*INDEX_TO_CACHE_ADDR(dmc, lookup_index) :*/
+		/*dbn;*/
+	/*region.count = dmc->block_size;*/
+
+	/*dm_io_ret = dm_io(&req, 1, &region, NULL);*/
+	/*if (dm_io_ret) {*/
+		/*meta->status = empty;*/
+		/*up(&(meta->prepare_lock));*/
+	/*}*/
+	/*DPPRINTK("prefetch (%lu) on %s: %s.",*/
+			/*dbn,*/
+			/*!from_ssd ? "HDD" : "SSD",*/
+			/*dm_io_ret ? "Failed" : "Sent");*/
+/*}*/
 
 static void
-alloc_prefetch(
-		struct pfd_cache_meta *meta,
+io_callback2(unsigned long error, void *context) {
+	struct cb_context *cb_context =
+		(struct cb_context *) context;
+	struct pfd_cache *cache = cb_context->cache;
+	struct cache_c *dmc = cache->dmc;
+	struct pfd_cache_meta *meta;
+	struct cache_set *cache_set;
+	struct cacheblock *cacheblk;
+	long flags1, flags2;
+	int i;
+	enum pfd_cache_meta_status status =
+		error ? empty : valid;
+
+	for (i = 0; i < cb_context->count; i++) {
+		meta = &(cache->metas[(i + cb_context->index) % PFD_CACHE_BLOCK_COUNT]);
+		spin_lock_irqsave(&(meta->lock_interrupt), flags1);
+		meta->status = status;
+		up(&(meta->prepare_lock));
+
+		if (meta->ssd_index >= 0) {
+			cacheblk = &(dmc->cache[meta->ssd_index]);
+			cache_set = &(dmc->cache_sets[meta->ssd_index / dmc->assoc]);
+			spin_lock_irqsave(&cache_set->set_spin_lock, flags2);
+			cacheblk->cache_state &= ~BLOCK_IO_INPROG;
+			spin_unlock_irqrestore(&cache_set->set_spin_lock, flags2);
+		}
+
+		spin_unlock_irqrestore(&(meta->lock_interrupt), flags1);
+	}
+
+	push_cb_context_stack(&(cache->context_stack), true);
+
+	DPPRINTK("%sio_callback. (%lu+%lu)",
+			error ? "\033[0;32;31m" : "",
+			meta->dbn,
+			(unsigned long)cb_context->count << dmc->block_shift);
+}
+
+static int
+dispatch_read_request(
+		struct pfd_cache *cache,
 		sector_t dbn,
+		int count,
 		int lookup_index) {
 
-	struct cache_c *dmc = meta->cache->dmc;
+	struct cache_c *dmc = cache->dmc;
+	int meta_index = dbn_to_cache_index(dmc, dbn);
+	int req_count = count + meta_index > PFD_CACHE_BLOCK_COUNT ?
+		2 : 1;
+	struct pfd_cache_meta *meta;
+	int i;
 	struct dm_io_request req;
 	struct dm_io_region region;
 	int dm_io_ret;
-	bool from_ssd = lookup_index >= 0 ? true : false;
-
-	meta->dbn = dbn;
-	meta->status = prepare;
-	sema_init(&(meta->prepare_lock), 0);
-	atomic_set(&(meta->hold_count), 0);
-	meta->ssd_index = lookup_index;
+	bool ssd = lookup_index < 0 ? false : true;
+	struct cb_context *cb_context;
 
 	req.bi_op = READ;
 	req.bi_op_flags = 0;
 	req.notify.fn = (io_notify_fn)io_callback;
-	req.notify.context = (void *)(meta);
 	req.client = from_ssd ? ssd_client : hdd_client;
 	req.mem.type = DM_IO_VMA;
 	req.mem.offset = 0;
-	req.mem.ptr.vma = meta->cache->data +
-		((unsigned long)dbn_to_cache_index(meta->cache, dbn) <<
-		 (dmc->block_shift + SECTOR_SHIFT));
-
-	region.bdev = from_ssd ?
+	region.bdev = ssd ?
 		dmc->cache_dev->bdev : dmc->disk_dev->bdev;
-	region.sector = from_ssd ?
-		INDEX_TO_CACHE_ADDR(dmc, lookup_index) :
-		dbn;
-	region.count = dmc->block_size;
 
-	dm_io_ret = dm_io(&req, 1, &region, NULL);
-	if (dm_io_ret) {
-		meta->status = empty;
-		up(&(meta->prepare_lock));
+	if (ssd) {
+		region.bdev = dmc->cache_dev->bdev;
+		region.sector = INDEX_TO_CACHE_ADDR(dmc, lookup_index);
+	} else {
+		region.bdev = dmc->disk_dev->bdev;
+		region.sector = dbn;
 	}
-	DPPRINTK("prefetch (%lu) on %s: %s.",
-			dbn,
-			!from_ssd ? "HDD" : "SSD",
-			dm_io_ret ? "Failed" : "Sent");
+
+	for (i = 0; i < req_count; i++) {
+		cb_context = pop_cb_context_stack(&(cache->context_stack), false);
+		cb_context->index = meta_index;
+		cb_context->count = PFD_CACHE_BLOCK_COUNT - meta_index;
+		req.mem.ptr.vma = cache->data;
+		region.sector = dbn;
+		if (i != 0) {
+			cb_context->count = count - cb_context->count;
+			req.mem.ptr.vma +=
+				(unsigned long) meta_index << (dmc->block_shift + SECTOR_SHIFT);
+			cb_context->index = 0;
+		}
+		req.notify.context = (void *) cb_context;
+		region->count = (sector_t)cb_context->count << dmc->block_shift;
+
+		dm_io_ret = dm_io(&req, 1, &region, NULL);
+		if (dm_io_ret)
+			return i + 1
+
+		if (!ssd)
+			region.sector += (sector_t)cb_context->count << dmc->block_shift;
+	}
+
+	return 0;
 }
 
 static bool
@@ -443,13 +622,78 @@ do_ssd_request(
 			if (!(cacheblk->cache_state & BLOCK_IO_INPROG) && (cacheblk->nr_queued == 0)) {
 				cacheblk->cache_state |= CACHEREADINPROG;
 				ex_flashcache_setlocks_multidrop(dmc, &tmp_bio);
-				alloc_prefetch(meta, dbn, lookup_index);
+
+				meta->ssd_index = lookup_index;
+				dispatch_read_request(
+						meta->cache,
+						dbn,
+						1,
+						lookup_index);
+
 				return true;
 			}
 		}
 	}
 	ex_flashcache_setlocks_multidrop(dmc, &tmp_bio);
 	return false;
+}
+
+static void
+flush_dispatch_req_pool(
+		struct pfd_cache *cache,
+		sector_t start,
+		int count) {
+
+	struct pfd_cache_meta *meta;
+	struct cache_c *dmc = cache->dmc;
+	int i, tmp;
+	long flags;
+	int ret = dispatch_read_request(
+			cache,
+			start,
+			count,
+			-1);
+
+	if (ret != 0) {
+		tmp = PFD_CACHE_BLOCK_COUNT - dbn_to_cache_index(start);
+		for (i = 0; i < tmp; i++) {
+			meta = &(cache->metas[i]);
+			spin_lock_irqsave(&(meta->lock), flags);
+			meta->status = empty;
+			up(&(meta->prepare_lock));
+			spin_unlock_irqrestore(&(meta->lock), flags);
+		}
+
+		if (i == 1) {
+			for (i = dbn_to_cache_index(start); i < PFD_CACHE_BLOCK_COUNT; i++) {
+				meta = &(cache->metas[i]);
+				spin_lock_irqsave(&(meta->lock), flags);
+				meta->status = empty;
+				up(&(meta->prepare_lock));
+				spin_unlock_irqrestore(&(meta->lock), flags);
+			}
+		}
+	}
+}
+
+static void
+update_dispatch_req_pool(
+		struct pfd_cache *cache,
+		sector_t dbn,
+		sector_t *start,
+		int *count) {
+
+	struct cache_c *dmc = cache->dmc;
+
+	if (dbn + (sector_t)dmc->block_size == *start)
+		*start -= (sector_t)dmc->block_size;
+	else if (*start + ((sector_t)count << dmc->block_shift) == dbn)
+		*count += 1;
+	else {
+		flush_dispatch_req_pool(cache, *start, *count);
+		*start = dbn;
+		*count = 1;
+	}
 }
 
 void pfd_cache_prefetch(
@@ -463,6 +707,8 @@ void pfd_cache_prefetch(
 	int meta_idx;
 	struct pfd_cache_meta *meta;
 	int stop_reason = 0;
+	sector_t seq_pool_start;
+	int seq_pool_count = 1;
 
 	spin_lock_irqsave(&(main_cache_set.lock), flags);
 	cache = find_cache_in_cache_set(dmc, &main_cache_set);
@@ -474,6 +720,7 @@ void pfd_cache_prefetch(
 	}
 
 	dbn = get_dbn_of_step(dmc, info, step);
+	seq_pool_start = dbn;
 	while (dbn >= 0) {
 		meta_idx = dbn_to_cache_index(cache, dbn);
 		meta = &(cache->metas[meta_idx]);
@@ -494,6 +741,13 @@ void pfd_cache_prefetch(
 			break;
 		}
 
+		// setup meta
+		meta->dbn = dbn;
+		meta->status = prepare;
+		sema_init(&(meta->prepare_lock), 0);
+		atomic_set(&(meta->hold_count), 0);
+		meta->ssd_index = -1;
+
 		// check ssd
 		if (do_ssd_request(meta, dbn)) {
 			stop_reason = 3;
@@ -502,13 +756,15 @@ void pfd_cache_prefetch(
 		}
 
 		// do hdd
-		alloc_prefetch(meta, dbn, -1);
 		spin_unlock_irqrestore(&(meta->lock), flags);
 		step += 1;
 		dbn = get_dbn_of_step(dmc, info, step);
+		update_dispatch_req_pool(cache, dbn, &seq_pool_start, &seq_pool_count);
+	}
+	if (step > 1) {
+		flush_dispatch_req_pool(cache, seq_pool_start, seq_pool_count);
 	}
 
-	DPPRINTK("prefetch count: %ld", step - 1);
 	DPPRINTK("stop reason: %d\n", stop_reason);
 }
 
