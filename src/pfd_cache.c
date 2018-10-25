@@ -320,8 +320,8 @@ get_dbn_of_step(
 			step + info->seq_count <= info->seq_total_count)
 		result += step << dmc->block_shift;
 	else {
-		tmp = info->seq_count + step;
-		result -= info->seq_count << dmc->block_shift;
+		tmp = info->seq_count + step - 1;
+		/*result -= info->seq_count << dmc->block_shift;*/
 		result += (tmp / info->seq_total_count) *
 			info->stride_distance_sect;
 		result += (tmp % info->seq_total_count) << dmc->block_shift;
