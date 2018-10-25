@@ -702,7 +702,7 @@ update_dispatch_req_pool(
 		spin_lock_irqsave(&(meta->lock), flags);
 		meta->status = empty;
 		up(&(meta->prepare_lock));
-		spin_unlock_irqrestore(&(meta->lock));
+		spin_unlock_irqrestore(&(meta->lock), flags);
 		return;
 	}
 	if (*start < 0) {
