@@ -605,8 +605,6 @@ do_ssd_request(
 	struct cache_c *dmc = meta->cache->dmc;
 	struct cacheblock *cacheblk;
 
-	return false;
-
 	tmp_bio.bi_iter.bi_sector = dbn;
 	tmp_bio.bi_iter.bi_size = 
 		(unsigned int)dmc->block_size << SECTOR_SHIFT;
