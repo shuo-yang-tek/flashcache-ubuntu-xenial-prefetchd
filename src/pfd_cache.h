@@ -14,3 +14,4 @@ bool pfd_cache_handle_bio(
 void pfd_cache_prefetch(
 		struct cache_c *dmc,
 		struct pfd_stat_info *info);
+int pfd_cache_reset(void);

@@ -498,3 +498,47 @@ void pfd_cache_prefetch(
 	DPPRINTK("prefetch count: %ld", step - 1);
 	DPPRINTK("stop reason: %d\n", stop_reason);
 }
+
+int pfd_cache_reset() {
+	long flags1, flags2;
+	int i, j;
+	struct pfd_cache *cache;
+	struct pfd_cache_meta *meta;
+
+	MPPRINTK("\033[1;33mpfd_cache reseting...");
+
+	spin_lock_irqsave(&(main_cache_set.lock), flags1);
+
+	for (i = 0; i < PFD_CACHE_COUNT_PER_SET; i++) {
+		if (main_cache_set.status_arr[i] == alloc_prepare) {
+			goto fail;
+		}
+		cache = main_cache_set.caches[i];
+		if (cache != NULL) {
+			spin_lock_irqsave(&(cache->lock), flags2);
+			for (j = 0; i < PFD_CACHE_BLOCK_COUNT; j++) {
+				meta = &(cache->metas[j]);
+				if (meta->status == prepare || atomic_read(&(meta->hold_count)) > 0) {
+					spin_unlock_irqrestore(&(cache->lock), flags2);
+					goto fail;
+				}
+			}
+			for (j = 0; i < PFD_CACHE_BLOCK_COUNT; j++) {
+				meta = &(cache->metas[j]);
+				meta->status = empty;
+				atomic_set(&(meta->hold_count), 0);
+			}
+			spin_unlock_irqrestore(&(cache->lock), flags2);
+		}
+	}
+
+	spin_unlock_irqrestore(&(main_cache_set.lock), flags1);
+	MPPRINTK("\033[0;32;32mpfd_cache reseted.");
+	return 0;
+
+fail:
+	spin_unlock_irqrestore(&(main_cache_set.lock), flags1);
+
+	MPPRINTK("\033[0;32;31mcan't reset pfd_cache");
+	return -1;
+}

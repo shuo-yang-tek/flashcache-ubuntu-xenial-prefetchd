@@ -63,6 +63,7 @@
 #ifdef PREFETCHD_ON
 #include "pfd_stat.h"
 #include "pfd_cache.h"
+#include "prefetchd_reset.h"
 #endif
 
 struct cache_c *cache_list_head = NULL;
@@ -1912,6 +1913,9 @@ flashcache_init(void)
 	r = pfd_cache_init();
 	if (r != 0)
 		goto end;
+	r = prefetchd_reset_init();
+	if (r != 0)
+		goto end;
 #endif
 
 end:
@@ -1948,6 +1952,7 @@ flashcache_exit(void)
 	kfree(flashcache_control);
 #ifdef PREFETCHD_ON
 	pfd_cache_exit();
+	prefetchd_reset_exit();
 #endif
 }
 
