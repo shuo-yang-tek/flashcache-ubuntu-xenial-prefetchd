@@ -674,7 +674,6 @@ flush_dispatch_req_pool(
 			meta->status = empty;
 			up(&(meta->prepare_lock));
 			spin_unlock_irqrestore(&(meta->lock), flags);
-			DPPRINTK("=== reset: %lu", meta->dbn);
 		}
 	} else if (ret == 2) {
 		tmp = start_index + count - PFD_CACHE_BLOCK_COUNT;
@@ -699,12 +698,13 @@ update_dispatch_req_pool(
 	struct cache_c *dmc = cache->dmc;
 	long flags;
 
+	DPPRINTK("==== %ld, %d", *start, *count);
+
 	if (dbn < 0) {
 		spin_lock_irqsave(&(meta->lock), flags);
 		meta->status = empty;
 		up(&(meta->prepare_lock));
 		spin_unlock_irqrestore(&(meta->lock), flags);
-		DPPRINTK("=== reset: %lu", meta->dbn);
 		return;
 	}
 	if (*start < 0) {
@@ -713,11 +713,11 @@ update_dispatch_req_pool(
 		return;
 	}
 
-	if (dbn + (long)dmc->block_size == *start) {
+	if ((*start) - dbn == (long)dmc->block_size) {
 		*start = dbn;
-		(*count) += 1;
-	} else if (*start + ((long)(*count) << dmc->block_shift) == dbn)
-		(*count) += 1;
+		*count += 1;
+	} else if (dbn - (*start) == (*count) << dmc->block_shift)
+		*count += 1;
 	else {
 		flush_dispatch_req_pool(cache, *start, *count);
 		*start = dbn;
