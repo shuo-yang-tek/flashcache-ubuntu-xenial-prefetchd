@@ -265,6 +265,15 @@ end:
 
 	spin_unlock(&global_lock);
 
+#ifdef PFD_STAT_SEQ_FOR_ONLY
+	if (result->stride_distance_sect != 0) {
+		result->seq_count = 1;
+		result->seq_total_count = 0;
+		result->stride_distance_sect = 0;
+		result->stride_count = 0;
+	}
+#endif
+
 	DPPRINTK("pfd_stat updated");
 	DPPRINTK("\tpid: %d",
 			pid);

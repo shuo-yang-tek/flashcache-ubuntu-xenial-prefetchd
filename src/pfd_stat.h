@@ -1,3 +1,4 @@
+//#define PFD_STAT_SEQ_FOR_ONLY
 #define PFD_STAT_COUNT 64
 
 #include <linux/types.h>
