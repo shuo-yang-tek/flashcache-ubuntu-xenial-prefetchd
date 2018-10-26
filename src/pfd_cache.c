@@ -604,6 +604,7 @@ do_ssd_request(
 	int lookup_index;
 	struct cache_c *dmc = meta->cache->dmc;
 	struct cacheblock *cacheblk;
+	int ret;
 
 	tmp_bio.bi_iter.bi_sector = dbn;
 	tmp_bio.bi_iter.bi_size = 
@@ -623,13 +624,22 @@ do_ssd_request(
 				ex_flashcache_setlocks_multidrop(dmc, &tmp_bio);
 
 				meta->ssd_index = lookup_index;
-				dispatch_read_request(
+				ret = dispatch_read_request(
 						meta->cache,
 						dbn,
 						1,
 						lookup_index);
 
-				return true;
+				if (ret == 0)
+					return true;
+				else {
+					ex_flashcache_setlocks_multiget(dmc, &tmp_bio);
+					cacheblk->cache_state &= ~BLOCK_IO_INPROG;
+					ex_flashcache_setlocks_multidrop(dmc, &tmp_bio);
+					meta->status = empty;
+					up(&(meta->prepare_lock));
+					return false;
+				}
 			}
 		}
 	}
@@ -797,6 +807,59 @@ void pfd_cache_prefetch(
 	flush_dispatch_req_pool(cache, seq_pool_start, seq_pool_count);
 
 	DPPRINTK("stop reason: %d\n", stop_reason);
+}
+
+void pfd_cache_prefetch2(
+		struct cache_c *dmc,
+		struct pfd_stat_info *info) {
+
+	long flags;
+	struct pfd_cache *cache;
+	struct pfd_cache_meta *meta;
+
+	long hdd_dbn_arr[PFD_CACHE_MAX_STEP];
+	long ssd_dbn_arr[PFD_CACHE_MAX_STEP_SSD];
+	int hdd_dbn_arr_count = 0;
+	int ssd_dbn_arr_count = 0;
+	int i;
+	long dbn;
+	int meta_idx;
+
+	spin_lock_irqsave(&(main_cache_set.lock), flags);
+	cache = find_cache_in_cache_set(dmc, &main_cache_set);
+	spin_unlock_irqrestore(&(main_cache_set.lock), flags);
+
+	if (cache == NULL) {
+		MPPRINTK("\033[0;32;31mCan't find pfd_cache.");
+		return;
+	}
+
+	for (i = 1; ; i++) {
+		dbn = get_dbn_of_step(dmc, info, i);
+		if (dbn < 0)
+			break;
+
+		meta_idx = dbn_to_cache_index(cache, dbn);
+		meta = &(cache->metas[meta_idx]);
+
+		spin_lock_irqsave(&(meta->lock), flags);
+
+		if (meta->status != empty && meta->dbn == dbn)
+			// exist
+			continue;
+
+		if (meta->status == prepare ||
+				atomic_read(&(meta->hold_count)) > 0)
+			// busy
+			continue;
+
+		// setup meta
+		meta->dbn = dbn;
+		meta->status = prepare;
+		sema_init(&(meta->prepare_lock), 0);
+
+		spin_unlock_irqrestore(&(meta->lock), flags);
+	}
 }
 
 int pfd_cache_reset() {

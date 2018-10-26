@@ -1,7 +1,10 @@
-#define SIZE_PER_READ (4096 * 4)
+#define SIZE_PER_READ 4096
 #define STRIDE_LEN 4096
-/*#define COUNT 200000*/
-#define COUNT 100
+#define COUNT 200000
+
+/*#define SIZE_PER_READ (4096 << 2)*/
+/*#define STRIDE_LEN (4096 << 2)*/
+/*#define COUNT 50000*/
 
 #include <stdio.h>
 #include <stdlib.h>
