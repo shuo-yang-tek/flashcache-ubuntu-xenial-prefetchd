@@ -361,6 +361,7 @@ int pfd_stat_get_prefetch_dbns(
 			tmp1 = info->seq_count;
 		}
 
+		i = 0;
 		while (1) {
 			while (j < info->seq_total_count) {
 				if (i >= max_step)
