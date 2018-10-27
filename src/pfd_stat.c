@@ -355,6 +355,7 @@ int pfd_stat_get_prefetch_dbns(
 		if (info->seq_total_count == info->seq_count) {
 			dbn += info->stride_distance_sect + (long)dmc->block_size;
 			j = 0;
+			tmp1 = 0;
 		} else {
 			dbn += (info->seq_total_count - info->seq_count + 1) << dmc->block_shift;
 			j = info->seq_count;
