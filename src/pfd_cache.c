@@ -457,6 +457,7 @@ void pfd_cache_prefetch(
 	int ssd_count = 0;
 	int ssd_max = dbn_arr_count >> PFD_CACHE_MAX_SSD_SHIFT;
 	int ssd_index;
+	long flags2;
 
 	if (dbn_arr_count == 0)
 		return;
@@ -470,12 +471,12 @@ void pfd_cache_prefetch(
 		i_step = -1;
 	}
 
-	spin_lock_irqsave(&(main_cache_set.lock), flags);
+	spin_lock_irqsave(&(main_cache_set.lock), flags2);
 	cache = find_cache_in_cache_set(dmc, &main_cache_set);
-	spin_unlock_irqrestore(&(main_cache_set.lock), flags);
 
 	if (cache == NULL) {
 		MPPRINTK("\033[0;32;31mCan't find pfd_cache.");
+		spin_unlock_irqrestore(&(main_cache_set.lock), flags2);
 		return;
 	}
 
@@ -525,6 +526,8 @@ void pfd_cache_prefetch(
 		meta->ssd_index = -1;
 		dispatch_io_request(meta);
 	}
+
+	spin_unlock_irqrestore(&(main_cache_set.lock), flags2);
 }
 
 int pfd_cache_reset() {
