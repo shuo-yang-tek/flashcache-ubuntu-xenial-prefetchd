@@ -338,7 +338,7 @@ int pfd_stat_get_prefetch_dbns(
 		while (1) {
 			while (j < info->seq_total_count) {
 				if (i >= max_step)
-					return max_step;
+					return (int)max_step;
 				dbn += (long)dmc->block_size;
 				if (dbn >= disk_sects)
 					return (int)i;

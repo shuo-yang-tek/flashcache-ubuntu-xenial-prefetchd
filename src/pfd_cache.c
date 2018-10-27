@@ -330,41 +330,6 @@ io_callback(unsigned long error, void *context) {
 }
 
 static void
-ssd_cache_unlock(struct pfd_cache_meta *meta, sector_t dbn) {
-
-	struct bio tmp_bio;
-	int lookup_res;
-	int lookup_index;
-	struct cache_c *dmc = meta->cache->dmc;
-	struct cacheblock *cacheblk;
-	int ret;
-
-	tmp_bio.bi_iter.bi_sector = dbn;
-	tmp_bio.bi_iter.bi_size = 
-		(unsigned int)dmc->block_size << SECTOR_SHIFT;
-
-	ex_flashcache_setlocks_multiget(dmc, &tmp_bio);
-	lookup_res = ex_flashcache_lookup(
-			dmc,
-			&tmp_bio,
-			&lookup_index);
-	if (lookup_res > 0) {
-		cacheblk = &dmc->cache[lookup_index];
-		if ((cacheblk->cache_state & VALID) && 
-				(cacheblk->dbn == dbn)) {
-			if (!(cacheblk->cache_state & BLOCK_IO_INPROG) && (cacheblk->nr_queued == 0)) {
-				cacheblk->cache_state |= CACHEREADINPROG;
-				ex_flashcache_setlocks_multidrop(dmc, &tmp_bio);
-
-				return lookup_index;
-			}
-		}
-	}
-	ex_flashcache_setlocks_multidrop(dmc, &tmp_bio);
-	return -1;
-}
-
-static void
 dispatch_io_request(struct pfd_cache_meta *meta) {
 	struct pfd_cache *cache = meta->cache;
 	struct cache_c *dmc = cache->dmc;
@@ -529,8 +494,8 @@ void pfd_cache_prefetch(
 
 		if (meta->status == prepare ||
 				atomic_read(&(meta->hold_count)) > 0) {
-			spin_unlock_irqrestore(&(meta->lock), flags);
 			// busy
+			spin_unlock_irqrestore(&(meta->lock), flags);
 			continue;
 		}
 
