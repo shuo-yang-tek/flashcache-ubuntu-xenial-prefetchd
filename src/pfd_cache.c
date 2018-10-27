@@ -500,7 +500,7 @@ void pfd_cache_prefetch(
 		i_end = dbn_arr_count;
 		i_step = 1;
 	} else {
-		i = dbn_arr_count - 1;
+		i = (-dbn_arr_count) - 1;
 		i_end = -1;
 		i_step = -1;
 	}
