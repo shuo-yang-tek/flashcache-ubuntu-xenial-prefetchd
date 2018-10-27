@@ -366,8 +366,12 @@ int pfd_stat_get_prefetch_dbns(
 				if (i >= max_step)
 					return (int)max_step;
 				dbn -= (long)dmc->block_size;
-				if (dbn < 0)
-					return (int)(i - j);
+				if (dbn < 0) {
+					tmp1 = i - j;
+					if (tmp1 < 0)
+						tmp1 = 0;
+					return (int)tmp1;
+				}
 				arr[i] = (sector_t)dbn;
 				j++;
 				i++;
