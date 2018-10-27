@@ -57,6 +57,7 @@ struct pfd_cache {
 	struct cache_c *dmc;
 	struct pfd_cache_meta metas[PFD_CACHE_BLOCK_COUNT];
 	void *data;
+	spinlock_t lock;
 };
 
 enum cache_set_init_status {
@@ -129,6 +130,7 @@ init_pfd_cache(
 		spin_lock_init(&(meta->lock));
 		spin_lock_init(&(meta->lock_interrupt));
 	}
+	spin_lock_init(&(cache->lock));
 
 	return cache;
 
@@ -471,14 +473,16 @@ void pfd_cache_prefetch(
 		i_step = -1;
 	}
 
-	spin_lock_irqsave(&(main_cache_set.lock), flags2);
+	spin_lock_irqsave(&(main_cache_set.lock), flags);
 	cache = find_cache_in_cache_set(dmc, &main_cache_set);
+	spin_unlock_irqrestore(&(main_cache_set.lock), flags);
 
 	if (cache == NULL) {
 		MPPRINTK("\033[0;32;31mCan't find pfd_cache.");
-		spin_unlock_irqrestore(&(main_cache_set.lock), flags2);
 		return;
 	}
+
+	spin_lock_irqsave(&(cache->lock), flags2);
 
 	for (; i != i_end; i += i_step) {
 		dbn = dbn_arr[i];
@@ -527,7 +531,7 @@ void pfd_cache_prefetch(
 		dispatch_io_request(meta);
 	}
 
-	spin_unlock_irqrestore(&(main_cache_set.lock), flags2);
+	spin_unlock_irqrestore(&(cache->lock), flags2);
 }
 
 int pfd_cache_reset() {
