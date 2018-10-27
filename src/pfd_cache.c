@@ -484,14 +484,18 @@ void pfd_cache_prefetch(
 
 		spin_lock_irqsave(&(meta->lock), flags);
 
-		if (meta->status != empty && meta->dbn == dbn)
+		if (meta->status != empty && meta->dbn == dbn) {
 			// exist
+			spin_unlock_irqrestore(&(meta->lock), flags);
 			continue;
+		}
 
 		if (meta->status == prepare ||
-				atomic_read(&(meta->hold_count)) > 0)
+				atomic_read(&(meta->hold_count)) > 0) {
+			spin_unlock_irqrestore(&(meta->lock), flags);
 			// busy
 			continue;
+		}
 
 		// setup meta
 		meta->dbn = dbn;
