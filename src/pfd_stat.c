@@ -26,6 +26,7 @@
 #include "flashcache.h"
 #include "pfd_stat.h"
 #include "prefetchd_log.h"
+#include "pfd_cache.h"
 
 struct pfd_seq_stat {
 	sector_t start;
@@ -286,4 +287,99 @@ end:
 			result->stride_distance_sect);
 	DPPRINTK("\tstride_count: %ld",
 			result->stride_count);
+}
+
+int pfd_stat_get_prefetch_dbns(
+		struct cache_c *dmc,
+		struct pfd_stat_info *info,
+		sector_t *arr) {
+
+	long max_step =
+		info->stride_count *
+		info->seq_total_count +
+		info->seq_count;
+	long i, j;
+	long dbn;
+	long disk_sects =
+		(long)dmc->disk_dev->bdev->bd_part->nr_sects;
+	long tmp1, tmp2;
+
+	if (max_step < PFD_CACHE_THRESHOLD_STEP)
+		return 0;
+
+	if (max_step > PFD_CACHE_MAX_STEP)
+		max_step = PFD_CACHE_MAX_STEP;
+
+	if (info->stride_distance_sect != 0) {
+		tmp1 = info->stride_distance_sect;
+		if (tmp1 < 0)
+			tmp1 = -tmp1;
+
+		tmp2 = PFD_CACHE_BLOCK_COUNT / tmp1;
+		tmp1 = tmp2 * info->seq_total_count;
+		if (max_step > tmp1)
+			max_step = tmp1;
+	}
+
+	if (info->seq_total_count == 0) {
+		dbn = (long)info->last_sect;
+		for (i = 0; i < max_step; i++) {
+			dbn += (long)dmc->block_size;
+			if (dbn >= disk_sects)
+				return (int)i;
+			arr[i] = (sector_t)dbn;
+		}
+		return (int)max_step;
+	} else if (info->stride_distance_sect > 0) {
+		i = 0;
+		j = info->seq_count;
+		dbn = (long)info->last_sect;
+
+		while (1) {
+			while (j < info->seq_total_count) {
+				if (i >= max_step)
+					return max_step;
+				dbn += (long)dmc->block_size;
+				if (dbn >= disk_sects)
+					return (int)i;
+				arr[i] = (sector_t)dbn;
+				j += 1;
+				i += 1;
+			}
+			j = 0;
+			dbn += info->stride_distance_sect -
+				(info->seq_total_count << dmc->block_shift);
+		}
+	} else if (info->stride_distance_sect < 0) {
+		dbn = (long)info->last_sect;
+		if (info->seq_total_count == info->seq_count) {
+			dbn += info->stride_distance_sect + (long)dmc->block_size;
+			j = 0;
+		} else {
+			dbn += (info->seq_total_count - info->seq_count + 1) << dmc->block_shift;
+			j = info->seq_count;
+			tmp1 = info->seq_count;
+		}
+
+		while (1) {
+			while (j < info->seq_total_count) {
+				if (i >= max_step)
+					return (int)max_step;
+				dbn -= (long)dmc->block_size;
+				if (dbn < 0)
+					return (int)(i - j);
+				arr[i] = (sector_t)dbn;
+				j++;
+				i++;
+			}
+
+			j = 0;
+			dbn += info->stride_distance_sect;
+			dbn += info->seq_total_count << dmc->block_shift;
+			dbn -= tmp1 << dmc->block_shift;
+			tmp1 = 0;
+		}
+	} else {
+		return 0;
+	}
 }

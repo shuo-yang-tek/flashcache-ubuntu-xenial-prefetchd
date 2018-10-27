@@ -19,3 +19,8 @@ void pfd_stat_update(
 		struct cache_c *dmc,
 		struct bio *bio,
 		struct pfd_stat_info *result);
+
+int pfd_stat_get_prefetch_dbns(
+		struct cache_c *dmc,
+		struct pfd_stat_info *info,
+		sector_t *arr);

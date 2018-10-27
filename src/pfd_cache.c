@@ -38,20 +38,20 @@ struct pfd_cache_set;
 struct pfd_cache;
 struct pfd_cache_meta;
 
-struct cb_context {
-	struct pfd_cache *cache;
-	int index;
-	int count;
-	struct cb_context *next;
-};
+/*struct cb_context {*/
+	/*struct pfd_cache *cache;*/
+	/*int index;*/
+	/*int count;*/
+	/*struct cb_context *next;*/
+/*};*/
 
-struct cb_context_stack {
-	struct cb_context pool[PFD_CACHE_BLOCK_COUNT];
-	int count;
-	struct cb_context *head;
-	spinlock_t lock;
-	spinlock_t lock_interrupt;
-};
+/*struct cb_context_stack {*/
+	/*struct cb_context pool[PFD_CACHE_BLOCK_COUNT];*/
+	/*int count;*/
+	/*struct cb_context *head;*/
+	/*spinlock_t lock;*/
+	/*spinlock_t lock_interrupt;*/
+/*};*/
 
 struct pfd_cache_meta {
 	struct pfd_cache *cache;
@@ -72,7 +72,7 @@ struct pfd_cache {
 	struct cache_c *dmc;
 	struct pfd_cache_meta metas[PFD_CACHE_BLOCK_COUNT];
 	void *data;
-	struct cb_context_stack context_stack;
+	/*struct cb_context_stack context_stack;*/
 };
 
 enum cache_set_init_status {
@@ -89,64 +89,64 @@ struct pfd_cache_set {
 	spinlock_t lock;
 };
 
-static void
-init_cb_context_stack(struct pfd_cache *cache) {
-	int i;
-	struct cb_context *cc;
-	struct cb_context_stack *stack = &(cache->context_stack);
+/*static void*/
+/*init_cb_context_stack(struct pfd_cache *cache) {*/
+	/*int i;*/
+	/*struct cb_context *cc;*/
+	/*struct cb_context_stack *stack = &(cache->context_stack);*/
 
-	for (i = 0; i < PFD_CACHE_BLOCK_COUNT; i++) {
-		cc = &(stack->pool[i]);
-		cc->next = i == PFD_CACHE_BLOCK_COUNT - 1 ?
-			NULL : &(stack->pool[i + 1]);
-		cc->cache = cache;
-	}
+	/*for (i = 0; i < PFD_CACHE_BLOCK_COUNT; i++) {*/
+		/*cc = &(stack->pool[i]);*/
+		/*cc->next = i == PFD_CACHE_BLOCK_COUNT - 1 ?*/
+			/*NULL : &(stack->pool[i + 1]);*/
+		/*cc->cache = cache;*/
+	/*}*/
 
-	stack->count = PFD_CACHE_BLOCK_COUNT;
-	stack->head = &(stack->pool[0]);
-	spin_lock_init(&(stack->lock));
-	spin_lock_init(&(stack->lock_interrupt));
-}
+	/*stack->count = PFD_CACHE_BLOCK_COUNT;*/
+	/*stack->head = &(stack->pool[0]);*/
+	/*spin_lock_init(&(stack->lock));*/
+	/*spin_lock_init(&(stack->lock_interrupt));*/
+/*}*/
 
-static struct cb_context *
-pop_cb_context_stack(struct cb_context_stack *stack, bool interrupt) {
-	long flags;
-	struct cb_context *result;
-	spinlock_t *lock = interrupt ?
-		&(stack->lock_interrupt) :
-		&(stack->lock);
+/*static struct cb_context **/
+/*pop_cb_context_stack(struct cb_context_stack *stack, bool interrupt) {*/
+	/*long flags;*/
+	/*struct cb_context *result;*/
+	/*spinlock_t *lock = interrupt ?*/
+		/*&(stack->lock_interrupt) :*/
+		/*&(stack->lock);*/
 
-	spin_lock_irqsave(lock, flags);
-	if (stack->count == 0) {
-		spin_unlock_irqrestore(lock, flags);
-		return NULL;
-	}
+	/*spin_lock_irqsave(lock, flags);*/
+	/*if (stack->count == 0) {*/
+		/*spin_unlock_irqrestore(lock, flags);*/
+		/*return NULL;*/
+	/*}*/
 
-	result = stack->head;
-	stack->head = result->next;
-	stack->count -= 1;
-	result->next = NULL;
+	/*result = stack->head;*/
+	/*stack->head = result->next;*/
+	/*stack->count -= 1;*/
+	/*result->next = NULL;*/
 
-	spin_unlock_irqrestore(lock, flags);
-	return result;
-}
+	/*spin_unlock_irqrestore(lock, flags);*/
+	/*return result;*/
+/*}*/
 
-static void
-push_cb_context_stack(
-		struct cb_context_stack *stack,
-		struct cb_context *context,
-		bool interrupt) {
+/*static void*/
+/*push_cb_context_stack(*/
+		/*struct cb_context_stack *stack,*/
+		/*struct cb_context *context,*/
+		/*bool interrupt) {*/
 
-	spinlock_t *lock = interrupt ?
-		&(stack->lock_interrupt) :
-		&(stack->lock);
-	long flags;
-	spin_lock_irqsave(lock, flags);
-	context->next = stack->head;
-	stack->head = context;
-	stack->count += 1;
-	spin_unlock_irqrestore(lock, flags);
-}
+	/*spinlock_t *lock = interrupt ?*/
+		/*&(stack->lock_interrupt) :*/
+		/*&(stack->lock);*/
+	/*long flags;*/
+	/*spin_lock_irqsave(lock, flags);*/
+	/*context->next = stack->head;*/
+	/*stack->head = context;*/
+	/*stack->count += 1;*/
+	/*spin_unlock_irqrestore(lock, flags);*/
+/*}*/
 
 static struct pfd_cache_set main_cache_set;
 static struct dm_io_client *hdd_client;
@@ -205,7 +205,7 @@ init_pfd_cache(
 		spin_lock_init(&(meta->lock_interrupt));
 	}
 
-	init_cb_context_stack(cache);
+	/*init_cb_context_stack(cache);*/
 
 	return cache;
 
@@ -375,227 +375,444 @@ cache_miss:
 	return false;
 }
 
-static long
-get_dbn_of_step(
-		struct cache_c *dmc,
-		struct pfd_stat_info *info,
-		long step) {
+/*static long*/
+/*get_dbn_of_step(*/
+		/*struct cache_c *dmc,*/
+		/*struct pfd_stat_info *info,*/
+		/*long step) {*/
 
-	long result = (long)(info->last_sect);
-	long max_step = 
-		info->stride_count * info->seq_total_count +
-		info->seq_count;
-	long tmp;
-	long walk_sects;
+	/*long result = (long)(info->last_sect);*/
+	/*long max_step = */
+		/*info->stride_count * info->seq_total_count +*/
+		/*info->seq_count;*/
+	/*long tmp;*/
+	/*long walk_sects;*/
 
-	if (max_step < PFD_CACHE_THRESHOLD_STEP)
-		return -1;
+	/*if (max_step < PFD_CACHE_THRESHOLD_STEP)*/
+		/*return -1;*/
 
-	max_step = max_step > PFD_CACHE_MAX_STEP ?
-		PFD_CACHE_MAX_STEP : max_step;
+	/*max_step = max_step > PFD_CACHE_MAX_STEP ?*/
+		/*PFD_CACHE_MAX_STEP : max_step;*/
 
-	if (step > max_step)
-		return -1;
+	/*if (step > max_step)*/
+		/*return -1;*/
 
-	if (info->seq_total_count == 0 || 
-			step + info->seq_count <= info->seq_total_count)
-		result += step << dmc->block_shift;
-	else {
-		tmp = info->seq_count + step - 1;
-		walk_sects = (tmp / info->seq_total_count) *
-			info->stride_distance_sect;
-		walk_sects += 
-			((info->seq_count - 1 + step) % info->seq_total_count) << dmc->block_shift;
-		if (walk_sects >> (dmc->block_shift) >= PFD_CACHE_BLOCK_COUNT)
-			return -1;
-		else
-			result += walk_sects - ((info->seq_count - 1) << dmc->block_shift);
-	}
-
-	if (result >= (long)(dmc->disk_dev->bdev->bd_part->nr_sects))
-		return -1;
-
-	return result;
-}
-
-/*static void io_callback(unsigned long error, void *context) {*/
-	/*struct pfd_cache_meta *meta =*/
-		/*(struct pfd_cache_meta *) context;*/
-	/*struct cache_set *cache_set;*/
-	/*struct cacheblock *cacheblk;*/
-	/*struct pfd_cache *cache = meta->cache;*/
-	/*struct cache_c *dmc = cache->dmc;*/
-	/*long flags1, flags2;*/
-
-	/*spin_lock_irqsave(&(meta->lock_interrupt), flags1);*/
-	/*meta->status = error != 0 ? empty : valid;*/
-	/*up(&(meta->prepare_lock));*/
-
-	/*if (meta->ssd_index >= 0) {*/
-		/*cacheblk = &(dmc->cache[meta->ssd_index]);*/
-		/*cache_set = &(dmc->cache_sets[meta->ssd_index / dmc->assoc]);*/
-		/*spin_lock_irqsave(&cache_set->set_spin_lock, flags2);*/
-		/*cacheblk->cache_state &= ~BLOCK_IO_INPROG;*/
-		/*spin_unlock_irqrestore(&cache_set->set_spin_lock, flags2);*/
+	/*if (info->seq_total_count == 0 || */
+			/*step + info->seq_count <= info->seq_total_count)*/
+		/*result += step << dmc->block_shift;*/
+	/*else {*/
+		/*tmp = info->seq_count + step - 1;*/
+		/*walk_sects = (tmp / info->seq_total_count) **/
+			/*info->stride_distance_sect;*/
+		/*walk_sects += */
+			/*((info->seq_count - 1 + step) % info->seq_total_count) << dmc->block_shift;*/
+		/*if (walk_sects >> (dmc->block_shift) >= PFD_CACHE_BLOCK_COUNT)*/
+			/*return -1;*/
+		/*else*/
+			/*result += walk_sects - ((info->seq_count - 1) << dmc->block_shift);*/
 	/*}*/
 
-	/*spin_unlock_irqrestore(&(meta->lock_interrupt), flags1);*/
+	/*if (result >= (long)(dmc->disk_dev->bdev->bd_part->nr_sects))*/
+		/*return -1;*/
 
-	/*DPPRINTK("%sio_callback. (%lu)",*/
-			/*error ? "\033[0;32;31m" : "",*/
-			/*meta->dbn);*/
+	/*return result;*/
 /*}*/
 
 /*static void*/
-/*alloc_prefetch(*/
-		/*struct pfd_cache_meta *meta,*/
+/*io_callback2(unsigned long error, void *context) {*/
+	/*struct cb_context *cb_context =*/
+		/*(struct cb_context *) context;*/
+	/*struct pfd_cache *cache = cb_context->cache;*/
+	/*struct cache_c *dmc = cache->dmc;*/
+	/*struct pfd_cache_meta *meta;*/
+	/*struct cache_set *cache_set;*/
+	/*struct cacheblock *cacheblk;*/
+	/*long flags1, flags2;*/
+	/*int i;*/
+	/*enum pfd_cache_meta_status status =*/
+		/*error ? empty : valid;*/
+
+	/*for (i = 0; i < cb_context->count; i++) {*/
+		/*meta = &(cache->metas[(i + cb_context->index) % PFD_CACHE_BLOCK_COUNT]);*/
+		/*spin_lock_irqsave(&(meta->lock_interrupt), flags1);*/
+		/*meta->status = status;*/
+		/*up(&(meta->prepare_lock));*/
+
+		/*if (meta->ssd_index >= 0) {*/
+			/*cacheblk = &(dmc->cache[meta->ssd_index]);*/
+			/*cache_set = &(dmc->cache_sets[meta->ssd_index / dmc->assoc]);*/
+			/*spin_lock_irqsave(&cache_set->set_spin_lock, flags2);*/
+			/*cacheblk->cache_state &= ~BLOCK_IO_INPROG;*/
+			/*spin_unlock_irqrestore(&cache_set->set_spin_lock, flags2);*/
+		/*}*/
+
+		/*spin_unlock_irqrestore(&(meta->lock_interrupt), flags1);*/
+	/*}*/
+
+	/*push_cb_context_stack(&(cache->context_stack), cb_context, true);*/
+
+	/*DPPRINTK("%sio_callback. (%lu+%lu)",*/
+			/*error ? "\033[0;32;31m" : "",*/
+			/*meta->dbn,*/
+			/*(unsigned long)cb_context->count << dmc->block_shift);*/
+/*}*/
+
+/*static int*/
+/*dispatch_read_request(*/
+		/*struct pfd_cache *cache,*/
 		/*sector_t dbn,*/
+		/*int count,*/
 		/*int lookup_index) {*/
 
-	/*struct cache_c *dmc = meta->cache->dmc;*/
+	/*struct cache_c *dmc = cache->dmc;*/
+	/*int meta_index = dbn_to_cache_index(cache, dbn);*/
+	/*int req_count = count + meta_index > PFD_CACHE_BLOCK_COUNT ?*/
+		/*2 : 1;*/
+	/*struct pfd_cache_meta *meta;*/
+	/*int i;*/
 	/*struct dm_io_request req;*/
 	/*struct dm_io_region region;*/
 	/*int dm_io_ret;*/
-	/*bool from_ssd = lookup_index >= 0 ? true : false;*/
-
-	/*meta->dbn = dbn;*/
-	/*meta->status = prepare;*/
-	/*sema_init(&(meta->prepare_lock), 0);*/
-	/*atomic_set(&(meta->hold_count), 0);*/
-	/*meta->ssd_index = lookup_index;*/
+	/*bool ssd = lookup_index < 0 ? false : true;*/
+	/*struct cb_context *cb_context;*/
 
 	/*req.bi_op = READ;*/
 	/*req.bi_op_flags = 0;*/
-	/*req.notify.fn = (io_notify_fn)io_callback;*/
-	/*req.notify.context = (void *)(meta);*/
-	/*req.client = from_ssd ? ssd_client : hdd_client;*/
+	/*req.notify.fn = (io_notify_fn)io_callback2;*/
+	/*req.client = ssd ? ssd_client : hdd_client;*/
 	/*req.mem.type = DM_IO_VMA;*/
 	/*req.mem.offset = 0;*/
-	/*req.mem.ptr.vma = meta->cache->data +*/
-		/*((unsigned long)dbn_to_cache_index(meta->cache, dbn) <<*/
-		 /*(dmc->block_shift + SECTOR_SHIFT));*/
 
-	/*region.bdev = from_ssd ?*/
-		/*dmc->cache_dev->bdev : dmc->disk_dev->bdev;*/
-	/*region.sector = from_ssd ?*/
-		/*INDEX_TO_CACHE_ADDR(dmc, lookup_index) :*/
-		/*dbn;*/
-	/*region.count = dmc->block_size;*/
-
-	/*dm_io_ret = dm_io(&req, 1, &region, NULL);*/
-	/*if (dm_io_ret) {*/
-		/*meta->status = empty;*/
-		/*up(&(meta->prepare_lock));*/
+	/*if (ssd) {*/
+		/*region.bdev = dmc->cache_dev->bdev;*/
+		/*region.sector = INDEX_TO_CACHE_ADDR(dmc, lookup_index);*/
+	/*} else {*/
+		/*region.bdev = dmc->disk_dev->bdev;*/
+		/*region.sector = dbn;*/
 	/*}*/
-	/*DPPRINTK("prefetch (%lu) on %s: %s.",*/
-			/*dbn,*/
-			/*!from_ssd ? "HDD" : "SSD",*/
-			/*dm_io_ret ? "Failed" : "Sent");*/
+
+	/*for (i = 0; i < req_count; i++) {*/
+		/*cb_context = pop_cb_context_stack(&(cache->context_stack), false);*/
+		/*cb_context->index = meta_index;*/
+		/*req.mem.ptr.vma = cache->data;*/
+		/*if (i != 0) {*/
+			/*cb_context->count = meta_index + count - PFD_CACHE_BLOCK_COUNT;*/
+			/*cb_context->index = 0;*/
+		/*} else {*/
+			/*cb_context->count = meta_index + count > PFD_CACHE_BLOCK_COUNT ?*/
+				/*PFD_CACHE_BLOCK_COUNT - meta_index :*/
+				/*count;*/
+			/*req.mem.ptr.vma +=*/
+				/*(unsigned long) meta_index << (dmc->block_shift + SECTOR_SHIFT);*/
+		/*}*/
+		/*req.notify.context = (void *) cb_context;*/
+		/*region.count = (sector_t)cb_context->count << dmc->block_shift;*/
+
+		/*dm_io_ret = dm_io(&req, 1, &region, NULL);*/
+		/*if (dm_io_ret)*/
+			/*return i + 1;*/
+
+		/*if (!ssd)*/
+			/*region.sector += (sector_t)cb_context->count << dmc->block_shift;*/
+	/*}*/
+
+	/*return 0;*/
 /*}*/
 
+/*static bool*/
+/*do_ssd_request(*/
+		/*struct pfd_cache_meta *meta,*/
+		/*sector_t dbn) {*/
+
+	/*struct bio tmp_bio;*/
+	/*int lookup_res;*/
+	/*int lookup_index;*/
+	/*struct cache_c *dmc = meta->cache->dmc;*/
+	/*struct cacheblock *cacheblk;*/
+	/*int ret;*/
+
+	/*tmp_bio.bi_iter.bi_sector = dbn;*/
+	/*tmp_bio.bi_iter.bi_size = */
+		/*(unsigned int)dmc->block_size << SECTOR_SHIFT;*/
+
+	/*ex_flashcache_setlocks_multiget(dmc, &tmp_bio);*/
+	/*lookup_res = ex_flashcache_lookup(*/
+			/*dmc,*/
+			/*&tmp_bio,*/
+			/*&lookup_index);*/
+	/*if (lookup_res > 0) {*/
+		/*cacheblk = &dmc->cache[lookup_index];*/
+		/*if ((cacheblk->cache_state & VALID) && */
+				/*(cacheblk->dbn == dbn)) {*/
+			/*if (!(cacheblk->cache_state & BLOCK_IO_INPROG) && (cacheblk->nr_queued == 0)) {*/
+				/*cacheblk->cache_state |= CACHEREADINPROG;*/
+				/*ex_flashcache_setlocks_multidrop(dmc, &tmp_bio);*/
+
+				/*meta->ssd_index = lookup_index;*/
+				/*ret = dispatch_read_request(*/
+						/*meta->cache,*/
+						/*dbn,*/
+						/*1,*/
+						/*lookup_index);*/
+
+				/*if (ret == 0)*/
+					/*return true;*/
+				/*else {*/
+					/*ex_flashcache_setlocks_multiget(dmc, &tmp_bio);*/
+					/*cacheblk->cache_state &= ~BLOCK_IO_INPROG;*/
+					/*ex_flashcache_setlocks_multidrop(dmc, &tmp_bio);*/
+					/*meta->status = empty;*/
+					/*up(&(meta->prepare_lock));*/
+					/*return false;*/
+				/*}*/
+			/*}*/
+		/*}*/
+	/*}*/
+	/*ex_flashcache_setlocks_multidrop(dmc, &tmp_bio);*/
+	/*return false;*/
+/*}*/
+
+/*static void*/
+/*flush_dispatch_req_pool(*/
+		/*struct pfd_cache *cache,*/
+		/*long start,*/
+		/*int count) {*/
+
+	/*struct pfd_cache_meta *meta;*/
+	/*struct cache_c *dmc = cache->dmc;*/
+	/*int i, tmp;*/
+	/*long flags;*/
+	/*int ret;*/
+	/*int start_index;*/
+
+	/*if (start < 0) return;*/
+	/*start_index = dbn_to_cache_index(cache, (sector_t)start);*/
+
+	/*DPPRINTK("calling dispatch_read_request: %ld+%ld",*/
+			/*start,*/
+			/*(long)count << dmc->block_shift);*/
+
+	/*ret = dispatch_read_request(*/
+			/*cache,*/
+			/*(sector_t)start,*/
+			/*count,*/
+			/*-1);*/
+
+	/*if (ret == 1) {*/
+		/*for (i = 0; i < count; i++) {*/
+			/*meta = &(cache->metas[(i + start_index) % PFD_CACHE_BLOCK_COUNT]);*/
+			/*spin_lock_irqsave(&(meta->lock), flags);*/
+			/*meta->status = empty;*/
+			/*up(&(meta->prepare_lock));*/
+			/*spin_unlock_irqrestore(&(meta->lock), flags);*/
+		/*}*/
+	/*} else if (ret == 2) {*/
+		/*tmp = start_index + count - PFD_CACHE_BLOCK_COUNT;*/
+		/*for (i = 0; i < tmp; i++) {*/
+			/*meta = &(cache->metas[i]);*/
+			/*spin_lock_irqsave(&(meta->lock), flags);*/
+			/*meta->status = empty;*/
+			/*up(&(meta->prepare_lock));*/
+			/*spin_unlock_irqrestore(&(meta->lock), flags);*/
+		/*}*/
+	/*}*/
+/*}*/
+
+/*static void*/
+/*update_dispatch_req_pool(*/
+		/*struct pfd_cache_meta *meta,*/
+		/*long dbn,*/
+		/*long *start,*/
+		/*int *count) {*/
+
+	/*struct pfd_cache *cache = meta->cache;*/
+	/*struct cache_c *dmc = cache->dmc;*/
+	/*long flags;*/
+
+	/*if (dbn < 0) {*/
+		/*spin_lock_irqsave(&(meta->lock), flags);*/
+		/*meta->status = empty;*/
+		/*up(&(meta->prepare_lock));*/
+		/*spin_unlock_irqrestore(&(meta->lock), flags);*/
+		/*return;*/
+	/*}*/
+	/*if (*start < 0) {*/
+		/**start = dbn;*/
+		/**count = 1;*/
+		/*return;*/
+	/*}*/
+
+	/*if ((*start) - dbn == (long)dmc->block_size) {*/
+		/**start = dbn;*/
+		/**count += 1;*/
+	/*} else if (dbn - (*start) == (*count) << dmc->block_shift)*/
+		/**count += 1;*/
+	/*else {*/
+		/*flush_dispatch_req_pool(cache, *start, *count);*/
+		/**start = dbn;*/
+		/**count = 1;*/
+	/*}*/
+/*}*/
+
+/*void pfd_cache_prefetch(*/
+		/*struct cache_c *dmc,*/
+		/*struct pfd_stat_info *info) {*/
+
+	/*long flags;*/
+	/*struct pfd_cache *cache;*/
+	/*long dbn;*/
+	/*long step = 1;*/
+	/*int meta_idx;*/
+	/*struct pfd_cache_meta *meta;*/
+	/*int stop_reason = 0;*/
+	/*long seq_pool_start = -1;*/
+	/*int seq_pool_count;*/
+
+	/*spin_lock_irqsave(&(main_cache_set.lock), flags);*/
+	/*cache = find_cache_in_cache_set(dmc, &main_cache_set);*/
+	/*spin_unlock_irqrestore(&(main_cache_set.lock), flags);*/
+
+	/*if (cache == NULL) {*/
+		/*MPPRINTK("\033[0;32;31mCan't find pfd_cache.");*/
+		/*return;*/
+	/*}*/
+
+	/*dbn = get_dbn_of_step(dmc, info, step);*/
+	/*while (dbn >= 0) {*/
+		/*meta_idx = dbn_to_cache_index(cache, dbn);*/
+		/*meta = &(cache->metas[meta_idx]);*/
+
+		/*spin_lock_irqsave(&(meta->lock), flags);*/
+
+		/*if (meta->status != empty && meta->dbn == (sector_t)dbn) {*/
+			/*// mem already*/
+			/*stop_reason = 1;*/
+			/*spin_unlock_irqrestore(&(meta->lock), flags);*/
+			/*break;*/
+		/*}*/
+		/*if (meta->status == prepare ||*/
+				/*atomic_read(&(meta->hold_count)) > 0) {*/
+			/*// no room*/
+			/*stop_reason = 2;*/
+			/*spin_unlock_irqrestore(&(meta->lock), flags);*/
+			/*break;*/
+		/*}*/
+
+		/*// setup meta*/
+		/*meta->dbn = dbn;*/
+		/*meta->status = prepare;*/
+		/*sema_init(&(meta->prepare_lock), 0);*/
+		/*atomic_set(&(meta->hold_count), 0);*/
+		/*meta->ssd_index = -1;*/
+
+		/*// check ssd*/
+		/*if (do_ssd_request(meta, dbn)) {*/
+			/*stop_reason = 3;*/
+			/*spin_unlock_irqrestore(&(meta->lock), flags);*/
+			/*break;*/
+		/*}*/
+
+		/*// do hdd*/
+		/*spin_unlock_irqrestore(&(meta->lock), flags);*/
+		/*if (info->stride_distance_sect >= 0)*/
+			/*update_dispatch_req_pool(meta, dbn, &seq_pool_start, &seq_pool_count);*/
+		/*step += 1;*/
+		/*dbn = get_dbn_of_step(dmc, info, step);*/
+	/*}*/
+	/*if (info->stride_distance_sect < 0) {*/
+		/*for (step -= 1; step > 0; step--) {*/
+			/*dbn = get_dbn_of_step(dmc, info, step);*/
+			/*if (dbn < 0) continue;*/
+
+			/*meta_idx = dbn_to_cache_index(cache, dbn);*/
+			/*meta = &(cache->metas[meta_idx]);*/
+			/*update_dispatch_req_pool(meta, dbn, &seq_pool_start, &seq_pool_count);*/
+		/*}*/
+	/*}*/
+	/*flush_dispatch_req_pool(cache, seq_pool_start, seq_pool_count);*/
+
+	/*DPPRINTK("stop reason: %d\n", stop_reason);*/
+/*}*/
+
+/////////////////////////////
+
 static void
-io_callback2(unsigned long error, void *context) {
-	struct cb_context *cb_context =
-		(struct cb_context *) context;
-	struct pfd_cache *cache = cb_context->cache;
+io_callback(unsigned long error, void *context) {
+	struct pfd_cache_meta *meta =
+		(struct pfd_cache_meta *)context;
+	struct pfd_cache *cache = meta->cache;
 	struct cache_c *dmc = cache->dmc;
-	struct pfd_cache_meta *meta;
 	struct cache_set *cache_set;
 	struct cacheblock *cacheblk;
 	long flags1, flags2;
-	int i;
-	enum pfd_cache_meta_status status =
-		error ? empty : valid;
+	enum pfd_cache_meta_status status = error == 0 ?
+		valid : empty;
 
-	for (i = 0; i < cb_context->count; i++) {
-		meta = &(cache->metas[(i + cb_context->index) % PFD_CACHE_BLOCK_COUNT]);
-		spin_lock_irqsave(&(meta->lock_interrupt), flags1);
-		meta->status = status;
-		up(&(meta->prepare_lock));
+	spin_lock_irqsave(&(meta->lock_interrupt), flags1);
+	meta->status = status;
+	up(&(meta->prepare_lock));
 
-		if (meta->ssd_index >= 0) {
-			cacheblk = &(dmc->cache[meta->ssd_index]);
-			cache_set = &(dmc->cache_sets[meta->ssd_index / dmc->assoc]);
-			spin_lock_irqsave(&cache_set->set_spin_lock, flags2);
-			cacheblk->cache_state &= ~BLOCK_IO_INPROG;
-			spin_unlock_irqrestore(&cache_set->set_spin_lock, flags2);
-		}
-
-		spin_unlock_irqrestore(&(meta->lock_interrupt), flags1);
+	if (meta->ssd_index >= 0) {
+		cacheblk = &(dmc->cache[meta->ssd_index]);
+		cache_set = &(dmc->cache_sets[meta->ssd_index / dmc->assoc]);
+		spin_lock_irqsave(&cache_set->set_spin_lock, flags2);
+		cacheblk->cache_state &= ~BLOCK_IO_INPROG;
+		spin_unlock_irqrestore(&cache_set->set_spin_lock, flags2);
 	}
 
-	push_cb_context_stack(&(cache->context_stack), cb_context, true);
+	spin_unlock_irqrestore(&(meta->lock_interrupt), flags1);
 
-	DPPRINTK("%sio_callback. (%lu+%lu)",
+	DPPRINTK("%sio_callback. (%lu)",
 			error ? "\033[0;32;31m" : "",
-			meta->dbn,
-			(unsigned long)cb_context->count << dmc->block_shift);
+			meta->dbn);
 }
 
-static int
-dispatch_read_request(
-		struct pfd_cache *cache,
-		sector_t dbn,
-		int count,
-		int lookup_index) {
-
+static void
+dispatch_io_request(struct pfd_cache_meta *meta) {
+	struct pfd_cache *cache = meta->cache;
 	struct cache_c *dmc = cache->dmc;
-	int meta_index = dbn_to_cache_index(cache, dbn);
-	int req_count = count + meta_index > PFD_CACHE_BLOCK_COUNT ?
-		2 : 1;
-	struct pfd_cache_meta *meta;
-	int i;
 	struct dm_io_request req;
 	struct dm_io_region region;
 	int dm_io_ret;
-	bool ssd = lookup_index < 0 ? false : true;
-	struct cb_context *cb_context;
+	bool from_ssd = meta->ssd_index < 0 ? false : true;
+	int meta_idx = dbn_to_cache_index(meta->dbn);
+	long flags;
 
 	req.bi_op = READ;
 	req.bi_op_flags = 0;
-	req.notify.fn = (io_notify_fn)io_callback2;
-	req.client = ssd ? ssd_client : hdd_client;
+	req.notify.fn = (io_notify_fn)io_callback;
+	req.notify.context = (void *)meta;
+	req.client = from_ssd ?
+		ssd_client : hdd_client;
 	req.mem.type = DM_IO_VMA;
 	req.mem.offset = 0;
+	req.mem.ptr.vma =cache->data +
+		((unsigned long)meta_idx << (dmc->block_shift + SECTOR_SHIFT));
 
-	if (ssd) {
-		region.bdev = dmc->cache_dev->bdev;
-		region.sector = INDEX_TO_CACHE_ADDR(dmc, lookup_index);
-	} else {
-		region.bdev = dmc->disk_dev->bdev;
-		region.sector = dbn;
+	region.bdev = from_ssd ?
+		dmc->cache_dev->bdev :
+		dmc->disk_dev->bdev;
+	region.sector = from_ssd ?
+		INDEX_TO_CACHE_ADDR(dmc, meta->ssd_index) :
+		meta->dbn;
+	region.count = dmc->block_size;
+
+	dm_io_ret = dm_io(&req, 1, &region, NULL);
+	if (dm_io_ret != 0) {
+		spin_lock_irqsave(&(meta->lock), flags);
+		meta->status = empty;
+		up(&(meta->prepare_lock));
+		spin_unlock_irqrestore(&(meta->lock), flags);
 	}
 
-	for (i = 0; i < req_count; i++) {
-		cb_context = pop_cb_context_stack(&(cache->context_stack), false);
-		cb_context->index = meta_index;
-		req.mem.ptr.vma = cache->data;
-		if (i != 0) {
-			cb_context->count = meta_index + count - PFD_CACHE_BLOCK_COUNT;
-			cb_context->index = 0;
-		} else {
-			cb_context->count = meta_index + count > PFD_CACHE_BLOCK_COUNT ?
-				PFD_CACHE_BLOCK_COUNT - meta_index :
-				count;
-			req.mem.ptr.vma +=
-				(unsigned long) meta_index << (dmc->block_shift + SECTOR_SHIFT);
-		}
-		req.notify.context = (void *) cb_context;
-		region.count = (sector_t)cb_context->count << dmc->block_shift;
-
-		dm_io_ret = dm_io(&req, 1, &region, NULL);
-		if (dm_io_ret)
-			return i + 1;
-
-		if (!ssd)
-			region.sector += (sector_t)cb_context->count << dmc->block_shift;
-	}
-
-	return 0;
+	DPPRINTK("%sdispatch io: %lu on %s",
+			dm_io_ret ? "\033[0;32;31m" : "",
+			meta->dbn,
+			from_ssd ? "SSD" : "HDD");
 }
 
-static bool
-do_ssd_request(
+static int
+get_ssd_cache_index(
 		struct pfd_cache_meta *meta,
 		sector_t dbn) {
 
@@ -623,110 +840,39 @@ do_ssd_request(
 				cacheblk->cache_state |= CACHEREADINPROG;
 				ex_flashcache_setlocks_multidrop(dmc, &tmp_bio);
 
-				meta->ssd_index = lookup_index;
-				ret = dispatch_read_request(
-						meta->cache,
-						dbn,
-						1,
-						lookup_index);
-
-				if (ret == 0)
-					return true;
-				else {
-					ex_flashcache_setlocks_multiget(dmc, &tmp_bio);
-					cacheblk->cache_state &= ~BLOCK_IO_INPROG;
-					ex_flashcache_setlocks_multidrop(dmc, &tmp_bio);
-					meta->status = empty;
-					up(&(meta->prepare_lock));
-					return false;
-				}
+				return lookup_index;
 			}
 		}
 	}
 	ex_flashcache_setlocks_multidrop(dmc, &tmp_bio);
-	return false;
+	return -1;
 }
 
-static void
-flush_dispatch_req_pool(
-		struct pfd_cache *cache,
-		long start,
-		int count) {
-
-	struct pfd_cache_meta *meta;
-	struct cache_c *dmc = cache->dmc;
-	int i, tmp;
-	long flags;
-	int ret;
-	int start_index;
-
-	if (start < 0) return;
-	start_index = dbn_to_cache_index(cache, (sector_t)start);
-
-	DPPRINTK("calling dispatch_read_request: %ld+%ld",
-			start,
-			(long)count << dmc->block_shift);
-
-	ret = dispatch_read_request(
-			cache,
-			(sector_t)start,
-			count,
-			-1);
-
-	if (ret == 1) {
-		for (i = 0; i < count; i++) {
-			meta = &(cache->metas[(i + start_index) % PFD_CACHE_BLOCK_COUNT]);
-			spin_lock_irqsave(&(meta->lock), flags);
-			meta->status = empty;
-			up(&(meta->prepare_lock));
-			spin_unlock_irqrestore(&(meta->lock), flags);
-		}
-	} else if (ret == 2) {
-		tmp = start_index + count - PFD_CACHE_BLOCK_COUNT;
-		for (i = 0; i < tmp; i++) {
-			meta = &(cache->metas[i]);
-			spin_lock_irqsave(&(meta->lock), flags);
-			meta->status = empty;
-			up(&(meta->prepare_lock));
-			spin_unlock_irqrestore(&(meta->lock), flags);
-		}
-	}
-}
-
-static void
-update_dispatch_req_pool(
-		struct pfd_cache_meta *meta,
-		long dbn,
+static bool
+update_seq_status(
+		struct cache_c *dmc,
+		sector_t dbn,
 		long *start,
 		int *count) {
 
-	struct pfd_cache *cache = meta->cache;
-	struct cache_c *dmc = cache->dmc;
-	long flags;
-
-	if (dbn < 0) {
-		spin_lock_irqsave(&(meta->lock), flags);
-		meta->status = empty;
-		up(&(meta->prepare_lock));
-		spin_unlock_irqrestore(&(meta->lock), flags);
-		return;
-	}
 	if (*start < 0) {
-		*start = dbn;
+		*start = (long)dbn;
 		*count = 1;
-		return;
+		return false;
 	}
 
-	if ((*start) - dbn == (long)dmc->block_size) {
-		*start = dbn;
+	if ((*start) - (long)dbn == (long)dmc->block_size) {
+		*start = (long)dbn;
 		*count += 1;
-	} else if (dbn - (*start) == (*count) << dmc->block_shift)
+	} else if ((long)dbn - (*start) == (*count) << dmc->block_shift)
 		*count += 1;
 	else {
-		flush_dispatch_req_pool(cache, *start, *count);
-		*start = dbn;
+		*start = (long)dbn;
 		*count = 1;
+		return true;
 	}
+
+	return false;
 }
 
 void pfd_cache_prefetch(
@@ -735,13 +881,30 @@ void pfd_cache_prefetch(
 
 	long flags;
 	struct pfd_cache *cache;
-	long dbn;
-	long step = 1;
-	int meta_idx;
 	struct pfd_cache_meta *meta;
-	int stop_reason = 0;
-	long seq_pool_start = -1;
-	int seq_pool_count;
+	int meta_idx;
+	sector_t dbn_arr[PFD_CACHE_MAX_STEP];
+	int dbn_arr_count = pfd_stat_get_prefetch_dbns(
+			dmc, info, dbn_arr);
+	int i, i_end, i_step;
+	sector_t dbn;
+	long ssd_seq_status_start = -1;
+	int ssd_seq_status_count;
+	int ssd_count = 0;
+	int ssd_max = dbn_arr_count >> PFD_CACHE_MAX_SSD_SHIFT;
+	int ssd_index;
+
+	if (dbn_arr_count == 0)
+		return;
+	else if (dbn_arr_count > 0) {
+		i = 0;
+		i_end = dbn_arr_count;
+		i_step = 1;
+	} else {
+		i = dbn_arr_count - 1;
+		i_end = -1;
+		i_step = -1;
+	}
 
 	spin_lock_irqsave(&(main_cache_set.lock), flags);
 	cache = find_cache_in_cache_set(dmc, &main_cache_set);
@@ -752,93 +915,8 @@ void pfd_cache_prefetch(
 		return;
 	}
 
-	dbn = get_dbn_of_step(dmc, info, step);
-	while (dbn >= 0) {
-		meta_idx = dbn_to_cache_index(cache, dbn);
-		meta = &(cache->metas[meta_idx]);
-
-		spin_lock_irqsave(&(meta->lock), flags);
-
-		if (meta->status != empty && meta->dbn == (sector_t)dbn) {
-			// mem already
-			stop_reason = 1;
-			spin_unlock_irqrestore(&(meta->lock), flags);
-			break;
-		}
-		if (meta->status == prepare ||
-				atomic_read(&(meta->hold_count)) > 0) {
-			// no room
-			stop_reason = 2;
-			spin_unlock_irqrestore(&(meta->lock), flags);
-			break;
-		}
-
-		// setup meta
-		meta->dbn = dbn;
-		meta->status = prepare;
-		sema_init(&(meta->prepare_lock), 0);
-		atomic_set(&(meta->hold_count), 0);
-		meta->ssd_index = -1;
-
-		// check ssd
-		if (do_ssd_request(meta, dbn)) {
-			stop_reason = 3;
-			spin_unlock_irqrestore(&(meta->lock), flags);
-			break;
-		}
-
-		// do hdd
-		spin_unlock_irqrestore(&(meta->lock), flags);
-		if (info->stride_distance_sect >= 0)
-			update_dispatch_req_pool(meta, dbn, &seq_pool_start, &seq_pool_count);
-		step += 1;
-		dbn = get_dbn_of_step(dmc, info, step);
-	}
-	if (info->stride_distance_sect < 0) {
-		for (step -= 1; step > 0; step--) {
-			dbn = get_dbn_of_step(dmc, info, step);
-			if (dbn < 0) continue;
-
-			meta_idx = dbn_to_cache_index(cache, dbn);
-			meta = &(cache->metas[meta_idx]);
-			update_dispatch_req_pool(meta, dbn, &seq_pool_start, &seq_pool_count);
-		}
-	}
-	flush_dispatch_req_pool(cache, seq_pool_start, seq_pool_count);
-
-	DPPRINTK("stop reason: %d\n", stop_reason);
-}
-
-void pfd_cache_prefetch2(
-		struct cache_c *dmc,
-		struct pfd_stat_info *info) {
-
-	long flags;
-	struct pfd_cache *cache;
-	struct pfd_cache_meta *meta;
-
-	long hdd_dbn_arr[PFD_CACHE_MAX_STEP];
-	long ssd_dbn_arr[PFD_CACHE_MAX_STEP_SSD];
-	int hdd_dbn_arr_count = 0;
-	int ssd_dbn_arr_count = 0;
-	int i;
-	long dbn;
-	int meta_idx;
-
-	spin_lock_irqsave(&(main_cache_set.lock), flags);
-	cache = find_cache_in_cache_set(dmc, &main_cache_set);
-	spin_unlock_irqrestore(&(main_cache_set.lock), flags);
-
-	if (cache == NULL) {
-		MPPRINTK("\033[0;32;31mCan't find pfd_cache.");
-		return;
-	}
-
-	for (i = 1; ; i++) {
-		dbn = get_dbn_of_step(dmc, info, i);
-		if (dbn < 0)
-			break;
-
+	for (; i != i_end; i += i_step) {
+		dbn = dbn_arr[i];
 		meta_idx = dbn_to_cache_index(cache, dbn);
 		meta = &(cache->metas[meta_idx]);
 
@@ -859,6 +937,25 @@ void pfd_cache_prefetch2(
 		sema_init(&(meta->prepare_lock), 0);
 
 		spin_unlock_irqrestore(&(meta->lock), flags);
+
+		if (ssd_count < ssd_max) {
+			// ssd
+			ssd_index = get_ssd_cache_index(meta, dbn);
+			if (ssd_index >= 0) {
+				meta->ssd_index = ssd_index;
+				dispatch_io_request(meta);
+				if (update_seq_status(
+							dmc, dbn,
+							&ssd_seq_status_start,
+							&ssd_seq_status_count)) {
+					ssd_count += 1;
+				}
+				continue;
+			}
+		}
+
+		meta->ssd_index = -1;
+		dispatch_io_request(meta);
 	}
 }
 
