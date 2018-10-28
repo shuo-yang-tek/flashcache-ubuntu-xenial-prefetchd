@@ -11,6 +11,9 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <errno.h>
+#include <semaphore.h>
+
+sem_t *sem;
 
 int child_job(int id, char *dev) {
 	int fd;
@@ -30,11 +33,14 @@ int child_job(int id, char *dev) {
 	}
 
 	for (i = 0; i < READ_COUNT; i++) {
+		sem_wait(sem);
 		if (read(fd, buf, READ_SIZE) < 0) {
 			printf("read failed.\n");
 			close(fd);
+			sem_post(sem);
 			return -1;
 		}
+		sem_post(sem);
 	}
 
 	close(fd);
@@ -57,6 +63,8 @@ int main(int argc, char *argv[]) {
 
 	dev = argv[1];
 
+	sem = sem_open("sema001", O_CREAT, 0666, 1);
+
 	clock_gettime(CLOCK_REALTIME, &start);
 
 	for (i = 0; i < n; i++) {
@@ -75,6 +83,9 @@ int main(int argc, char *argv[]) {
 	}
 
 	clock_gettime(CLOCK_REALTIME, &end);
+
+	sem_close(sem);
+	sem_unlink("sema001");
 
 	spent = (double)end.tv_sec - (double)start.tv_sec;
 	spent += ((double)end.tv_nsec - (double)start.tv_nsec) / 1.0e9;
