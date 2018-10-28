@@ -41,6 +41,7 @@ int child_job(int id, char *dev) {
 			return -1;
 		}
 		sem_post(sem);
+		usleep(1000);
 	}
 
 	close(fd);
@@ -63,6 +64,7 @@ int main(int argc, char *argv[]) {
 
 	dev = argv[1];
 
+	sem_unlink("sema001");
 	sem = sem_open("sema001", O_CREAT, 0666, 1);
 
 	clock_gettime(CLOCK_REALTIME, &start);
