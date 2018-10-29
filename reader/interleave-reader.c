@@ -1,6 +1,6 @@
 #define CHILD_COUNT 4
 #define READ_SIZE 4096
-#define READ_COUNT 1000
+#define READ_COUNT 10000
 
 #include <stdio.h>
 #include <unistd.h>
